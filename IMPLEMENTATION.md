@@ -113,6 +113,16 @@ reconciliation, th-env bundle, ABI checklist).
 - [ ] **boot guard** — warn+refuse when another `window.TavernHelper` with a
   different build stamp already exists (side-by-side install protection).
 
+## Firefox-specific fixes
+
+- **import.meta.resolve quirk**: rolldown's modulepreload helper resolves
+  relative dep URLs via `import.meta.resolve` — Firefox resolves `./x` against
+  `document.baseURI` ("/"), not the module URL → chunks 404 → `text/html` MIME
+  block → panel/plugins never loaded. Fixed by emitting absolute dep URLs
+  (`base: '/scripts/extensions/third-party/JS-Slash-Runner/dist/'` in
+  vite.config.ts). engine.start() also hardened: a plugins-chunk failure no
+  longer aborts mount/engine start.
+
 ## Contract notes / documented deltas
 
 - `document.scripts` inside iframes shows `lib/th-env.js` instead of jsdelivr

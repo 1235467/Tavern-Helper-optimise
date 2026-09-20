@@ -61,9 +61,14 @@ $(async () => {
   } as EnvProvider);
 
   const $app = $('<div id="tavern_helper">').appendTo('#extensions_settings');
-  // vfm + tippy (~560KB) install from the deferred panel chunk
-  const { default: installPanelPlugins } = await import('@/panel/plugins');
-  installPanelPlugins(app);
+  // vfm + tippy (~560KB) install from the deferred panel chunk — a chunk
+  // load failure must not take down mounting (or the render engine below)
+  try {
+    const { default: installPanelPlugins } = await import('@/panel/plugins');
+    installPanelPlugins(app);
+  } catch (e) {
+    console.error('[tavern-helper-ng] panel plugins chunk failed to load', e);
+  }
   app.mount($app[0]);
 
   // start AFTER app.mount: Render.vue's useMacroLike registers demacro

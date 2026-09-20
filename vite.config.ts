@@ -28,7 +28,17 @@ const relative_lib_path = path.relative(path.join(__dirname, 'dist'), path.join(
 
 const WASM_SRC = path.join(__dirname, 'crates/th-core/target/wasm32-unknown-unknown/release/th_core.wasm');
 
+// Absolute base for emitted chunk/asset URLs. rolldown's modulepreload helper
+// resolves dep paths via import.meta.resolve('./x') — Firefox resolves those
+// against document.baseURI (the PAGE, "/"), not the module URL, so relative
+// chunks 404 on Firefox. Absolute URLs bypass the quirk entirely.
+// The extension dir name is part of the script ABI anyway.
+const EXTENSION_DIR = 'JS-Slash-Runner';
+const BASE = `/scripts/extensions/third-party/${EXTENSION_DIR}/dist/`;
+
 export default defineConfig(({ mode }) => ({
+  base: BASE,
+
   plugins: [
     vue({
       features: {
