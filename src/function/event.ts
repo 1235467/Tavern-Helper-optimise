@@ -171,6 +171,8 @@ type IframeEventType = (typeof iframe_events)[keyof typeof iframe_events];
 export const iframe_events = {
   MESSAGE_IFRAME_RENDER_STARTED: 'message_iframe_render_started',
   MESSAGE_IFRAME_RENDER_ENDED: 'message_iframe_render_ended',
+  /** additive (tavern-helper-ng): content rewrite of an already-loaded iframe */
+  MESSAGE_IFRAME_RENDER_UPDATED: 'message_iframe_render_updated',
   GENERATION_REQUESTED: 'js_generation_requested',
   GENERATION_STARTED: 'js_generation_started',
   STREAM_TOKEN_RECEIVED_FULLY: 'js_stream_token_received_fully',
@@ -288,6 +290,7 @@ export type SendingMessage = {
 export type ListenerType = {
   [iframe_events.MESSAGE_IFRAME_RENDER_STARTED]: (iframe_name: string) => void;
   [iframe_events.MESSAGE_IFRAME_RENDER_ENDED]: (iframe_name: string) => void;
+  [iframe_events.MESSAGE_IFRAME_RENDER_UPDATED]: (iframe_name: string) => void;
   [iframe_events.GENERATION_REQUESTED]: (
     ...args:
       | [generation_id: string, type: 'generate', generate_config: GenerateConfig]

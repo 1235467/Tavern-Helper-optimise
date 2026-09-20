@@ -16,8 +16,17 @@ interface Mounted {
   iframe: MessageIframe;
 }
 
+/** a located frontend pre not yet mounted — IO gating defers the iframe
+ * (and its ~10-script realm eval) until the wrapper nears the viewport */
+interface PendingMount {
+  wrapper: HTMLElement;
+  pre: HTMLPreElement;
+  index: number;
+}
+
 interface MessageRuntime {
   mounted: Mounted[];
+  pending: PendingMount[];
 }
 
 /** chat container lookup — ST's live chat array is imported per-call since
@@ -41,24 +50,68 @@ function mesElement(id: number): HTMLElement | null {
   return document.querySelector(`#chat > .mes[mesid="${id}"]`);
 }
 
+const IO_MARGIN_PX = 300;
+
+function isNearViewport(el: HTMLElement): boolean {
+  const r = el.getBoundingClientRect();
+  return r.bottom > -IO_MARGIN_PX && r.top < window.innerHeight + IO_MARGIN_PX;
+}
+
 export class RuntimeRegistry {
   private runtimes = new Map<number, MessageRuntime>();
+  /** element → pending record, for the shared IntersectionObserver */
+  private pendingByEl = new Map<HTMLElement, { messageId: number; rec: PendingMount }>();
+  private observer = new IntersectionObserver(
+    entries => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        this.observer.unobserve(e.target);
+        const rec = this.pendingByEl.get(e.target as HTMLElement);
+        if (rec) {
+          this.pendingByEl.delete(e.target as HTMLElement);
+          this.mountPending(rec.messageId, rec.rec);
+        }
+      }
+    },
+    { rootMargin: `${IO_MARGIN_PX}px` },
+  );
 
-  /** mount iframes for every frontend <pre> in one message */
+  private mountIframe(messageId: number, index: number, wrapper: HTMLElement, pre: HTMLPreElement): Mounted {
+    const name = `TH-message--${messageId}--${index}`;
+    const iframe = new MessageIframe(name, wrapper);
+    mountIntoRenderDiv(wrapper, iframe.element);
+    iframe.updateCode(pre.textContent ?? '');
+    return { wrapper, iframe };
+  }
+
+  private mountPending(messageId: number, rec: PendingMount) {
+    const rt = this.runtimes.get(messageId);
+    if (!rt) return;
+    const pi = rt.pending.indexOf(rec);
+    if (pi === -1) return;
+    rt.pending.splice(pi, 1);
+    rt.mounted.push(this.mountIframe(messageId, rec.index, rec.wrapper, rec.pre));
+  }
+
+  /** mount iframes for every frontend <pre> in one message (IO-gated) */
   private renderOne(messageId: number): MessageRuntime | null {
     const mes = mesElement(messageId);
     if (!mes) return null;
     const found = scanMessage(mes);
     if (found.length === 0) return null;
-    const mounted: Mounted[] = found.map(({ wrapper }, index) => {
-      const name = `TH-message--${messageId}--${index}`;
-      const iframe = new MessageIframe(name, wrapper);
-      mountIntoRenderDiv(wrapper, iframe.element);
-      // content = decoded text of the <pre> (the code inside the code tags)
-      iframe.updateCode(found[index].pre.textContent ?? '');
-      return { wrapper, iframe };
+    const mounted: Mounted[] = [];
+    const pending: PendingMount[] = [];
+    found.forEach(({ wrapper, pre }, index) => {
+      const rec = { wrapper, pre, index };
+      if (env().io_gate && !isNearViewport(wrapper)) {
+        pending.push(rec);
+        this.pendingByEl.set(wrapper, { messageId, rec });
+        this.observer.observe(wrapper);
+      } else {
+        mounted.push(this.mountIframe(messageId, index, wrapper, pre));
+      }
     });
-    return { mounted };
+    return { mounted, pending };
   }
 
   private drop(messageId: number) {
@@ -67,6 +120,12 @@ export class RuntimeRegistry {
       for (const m of rt.mounted) {
         m.iframe.unmount();
         unmountFromRenderDiv(m.wrapper);
+      }
+      for (const p of rt.pending) {
+        this.observer.unobserve(p.wrapper);
+        this.pendingByEl.delete(p.wrapper);
+        // pending wrappers never mounted an iframe — the <pre> is already
+        // visible; nothing else to undo
       }
       this.runtimes.delete(messageId);
     }

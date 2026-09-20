@@ -27,6 +27,13 @@ export interface RenderEnv {
   env_source: 'local' | 'cdn';
   /** engine: 'ng' (this core) or 'legacy' (the original Vue pipeline) */
   engine: 'ng' | 'legacy';
+  /**
+   * IntersectionObserver render gating: defer iframe creation for below-fold
+   * messages until their wrapper nears the viewport (defers the ~10-script
+   * realm eval — biggest FF Android win). Fallback state = the raw <pre>
+   * stays visible until it scrolls into view.
+   */
+  io_gate: boolean;
 }
 
 export const defaultRenderEnv: RenderEnv = {
@@ -41,6 +48,7 @@ export const defaultRenderEnv: RenderEnv = {
   optimize_hljs: false,
   env_source: 'local',
   engine: 'ng',
+  io_gate: true,
 };
 
 export interface EnvProvider {

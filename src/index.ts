@@ -78,7 +78,7 @@ $(async () => {
   // keeps the original Vue pipeline instead.
   if (!usesManagedChatSurface && settings.settings.render.engine === 'ng') {
     const engine = new RenderEngine();
-    engine.start();
+    void engine.start();
   }
 });
 

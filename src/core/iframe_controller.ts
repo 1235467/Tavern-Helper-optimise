@@ -8,6 +8,7 @@
 
 import { env } from '@/core/env';
 import { createMessageSrcdoc } from '@/core/srcdoc';
+import { srcdocIsFlaky } from '@/core/srcdoc_probe';
 import { eventSource } from '@sillytavern/script';
 
 /** one shared resize broadcaster instead of a listener per iframe */
@@ -62,7 +63,8 @@ export class MessageIframe {
   }
 
   private setDocument(html: string) {
-    if (env().use_blob_url) {
+    // blob-URL documents when opted in OR when srcdoc is flaky (FF teardown)
+    if (env().use_blob_url || srcdocIsFlaky()) {
       const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
       if (this.blobUrl) URL.revokeObjectURL(this.blobUrl);
       this.blobUrl = url;
@@ -83,18 +85,32 @@ export class MessageIframe {
    * In live mode with an already-loaded applier iframe, sends a TH_STREAM_PATCH
    * postMessage instead of a srcdoc reload — no re-navigation.
    */
+  private effectiveBlobMode(): boolean {
+    return env().use_blob_url || srcdocIsFlaky();
+  }
+
   updateCode(codeText: string) {
     if (this.liveMode && this.loaded) {
       this.iframe.contentWindow?.postMessage({ type: 'TH_STREAM_PATCH', html: codeText }, '*');
+      eventSource.emit('message_iframe_render_updated', this.name);
       return;
     }
-    this.setDocument(createMessageSrcdoc(codeText, env().use_blob_url, this.liveMode));
+    // first load → started/ended pair; subsequent rewrites → render_updated
+    const wasLoaded = this.loaded;
+    this.setDocument(createMessageSrcdoc(codeText, this.effectiveBlobMode(), this.liveMode));
+    if (wasLoaded) {
+      eventSource.emit('message_iframe_render_updated', this.name);
+    }
   }
 
   /** seal a live-mode iframe: write the final complete document once */
   seal(codeText: string) {
     this.liveMode = false;
-    this.setDocument(createMessageSrcdoc(codeText, env().use_blob_url, false));
+    const wasLoaded = this.loaded;
+    this.setDocument(createMessageSrcdoc(codeText, this.effectiveBlobMode(), false));
+    if (wasLoaded) {
+      eventSource.emit('message_iframe_render_updated', this.name);
+    }
   }
 
   get element(): HTMLIFrameElement {

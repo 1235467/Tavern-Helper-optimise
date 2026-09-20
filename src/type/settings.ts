@@ -73,6 +73,7 @@ export const GlobalSettings = z
         streaming_mode: z.enum(['sealed', 'live']).default('sealed').catch('sealed'),
         env_source: z.enum(['local', 'cdn']).default('local').catch('local'),
         engine: z.enum(['ng', 'legacy']).default('ng').catch('ng'),
+        io_gate: z.boolean().default(true).catch(true),
       })
       .prefault({}),
     script: z

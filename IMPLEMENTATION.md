@@ -108,15 +108,19 @@ reconciliation, th-env bundle, ABI checklist).
 - [x] **`demacroOnPrompt` WASM prescan** — *kept as regex application:
   prompt-side works on strings with no DOM churn, so the win is marginal;
   demacroOnPrompt stays verbatim. Noted deliberately.*
-- [ ] **IntersectionObserver render gating** — currently renders all messages
-  in depth range eagerly (parity with upstream); IO gating planned (defers
-  ~10-script realm eval for below-the-fold messages).
-- [ ] **srcdoc-vs-blob probe** — feature-detect FF srcdoc teardown and default
-  `use_blob_url` on Firefox if flaky (fallback chain `frameElement.id`→
-  `__TH_IFRAME_ID`→`window.name` is already preserved in predefine.js).
-- [ ] **`message_iframe_render_updated`** event (non-ABI, documents update vs
-  mount) — `message_iframe_render_ended` now fires once-per-seal instead of
-  per-token; add the update event + changelog note.
+- [x] **IntersectionObserver render gating** ✅ `render.io_gate` (default
+  true): below-fold `.TH-render` wrappers register on a shared
+  IntersectionObserver (300px margin); the iframe + its ~10-script realm eval
+  only happens when the wrapper nears the viewport. Fallback state = the raw
+  `<pre>` stays visible; sealed once mounted (no scroll-out unmount).
+- [x] **srcdoc-vs-blob probe** ✅ `src/core/srcdoc_probe.ts`: hidden srcdoc
+  iframe writes `__TH_SRCDOC_OK` from inside — if `frameElement` doesn't
+  survive (FF teardown), blob-URL mode activates globally for the session
+  (`effectiveBlobMode()` in iframe_controller). Probed once at engine start
+  before first render.
+- [x] **`message_iframe_render_updated`** ✅ additive event emitted on
+  post-load content rewrites (streaming updates, seal, live patches); added
+  to `iframe_events` enum + ListenerType (backwards-compatible).
 - [ ] **e2e playwright suite** + perf gate (assert bounded iframe reload count
   on a recorded token stream).
 - [ ] **full vue-tsc pass** — scoped check of core/wasm is clean
