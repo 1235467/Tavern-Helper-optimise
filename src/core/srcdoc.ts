@@ -23,14 +23,21 @@ import { engine } from '@/wasm/loader';
 import { env } from '@/core/env';
 import { getCharAvatarPath, getUserAvatarPath } from '@/util/tavern';
 
-/** extension dir name — kept identical for drop-in script compatibility */
-export const EXTENSION_DIR = 'JS-Slash-Runner';
+/** extension dir name — injected at build (default JS-Slash-Runner, EXT_DIR override) */
+declare const __TH_EXT_DIR__: string | undefined;
+export const EXTENSION_DIR: string =
+  typeof __TH_EXT_DIR__ === 'string' && __TH_EXT_DIR__ ? __TH_EXT_DIR__ : 'JS-Slash-Runner';
 const LIB_BASE = `/scripts/extensions/third-party/${EXTENSION_DIR}/lib`;
 
-/** third-party block for message iframes: local bundle or verbatim CDN html */
+/** third-party block for message iframes: local bundle or verbatim CDN html
+ * (the raw file hardcodes the JS-Slash-Runner lib path — swap it for
+ * EXT_DIR builds) */
 function thirdPartyMessageBlock(): string {
   if (env().env_source === 'cdn') {
-    return third_party_message;
+    return third_party_message.replaceAll(
+      '/scripts/extensions/third-party/JS-Slash-Runner/',
+      `/scripts/extensions/third-party/${EXTENSION_DIR}/`,
+    );
   }
   return `<link rel="stylesheet" href="${LIB_BASE}/th-env.css" />
 <script src="${LIB_BASE}/tailwindcss.min.js"></script>

@@ -32,8 +32,9 @@ const WASM_SRC = path.join(__dirname, 'crates/th-core/target/wasm32-unknown-unkn
 // resolves dep paths via import.meta.resolve('./x') — Firefox resolves those
 // against document.baseURI (the PAGE, "/"), not the module URL, so relative
 // chunks 404 on Firefox. Absolute URLs bypass the quirk entirely.
-// The extension dir name is part of the script ABI anyway.
-const EXTENSION_DIR = 'JS-Slash-Runner';
+// The extension dir name is part of the script ABI (default JS-Slash-Runner;
+// EXT_DIR env var for installs under a different folder name).
+const EXTENSION_DIR = process.env.EXT_DIR ?? 'JS-Slash-Runner';
 const BASE = `/scripts/extensions/third-party/${EXTENSION_DIR}/dist/`;
 
 export default defineConfig(({ mode }) => ({
@@ -128,6 +129,10 @@ export default defineConfig(({ mode }) => ({
   },
 
   build: {
+    // expose the extension dir name to src (srcdoc lib paths)
+    define: {
+      __TH_EXT_DIR__: JSON.stringify(EXTENSION_DIR),
+    },
     rollupOptions: {
       input: 'src/index.ts',
       preserveEntrySignatures: 'strict',
