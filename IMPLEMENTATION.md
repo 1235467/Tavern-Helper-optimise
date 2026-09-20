@@ -68,6 +68,14 @@ reconciliation, th-env bundle, ABI checklist).
   upstream 1.1MB + 1.2MB eager jsoneditor; `dist/th_core.wasm` 112KB;
   Panel/plugins/vue-tippy all deferred chunks. 20 contract + 2 vitest tests
   green on node 23.
+- **verified in real SillyTavern** ✅ repo symlinked into
+  `SillyTavern/public/scripts/extensions/third-party/JS-Slash-Runner`
+  (ST 1.19.0, server running at 127.0.0.1:8000):
+  - `ST_IMPORT_DEPTH=5 pnpm run build` → emitted `@sillytavern/*` imports
+    resolve correctly (`../../../../../scripts/*.js`)
+  - `/api/extensions/discover` lists `third-party/JS-Slash-Runner` ✓
+  - manifest/index.js/th_core.wasm/th-env.js all serve 200;
+    wasm MIME = `application/wasm` (instantiateStreaming works)
 - **Settings schema** ✅ additive: `render.streaming_mode|'env_source'|'engine'`
 - **Render.vue gate** ✅ legacy teleport pipeline + Streaming.vue only mount
   in `engine==='legacy'`
