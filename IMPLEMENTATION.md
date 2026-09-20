@@ -91,11 +91,15 @@ reconciliation, th-env bundle, ABI checklist).
   character variable writes still POST the whole character. Plan: shallowRef +
   dirty flags + coalesced `writeExtensionField` (force-flush on export/
   CHAT_CHANGED). *Not yet implemented — original behavior intact.*
-- [ ] **macro_like render-path**: `panel/render/macro_like.ts` still does the
-  wholesale `.mes_text` innerHTML rewrite (destroys+recreates iframes — same
-  double-render as upstream). WASM `scan_builtin_macros` prescan + node-targeted
-  patching is designed but not wired. Known upstream bug also present:
-  `use_collapse_code_block.ts` watches a non-reactive array.
+- [x] **macro_like render-path** ✅ `demacroOnRender` rewritten: WASM
+  `scan_builtin_macros` prescan + node-targeted text-node replacement — only
+  touched `<pre>` iframes drop+remount instead of every iframe in the message.
+  Custom `registerMacroLike` regexes fall back to the verbatim wholesale path;
+  pathological format-in-prefix nesting falls back per-node. Upstream latent
+  type smell fixed (`role: message.role` 'tool' cast). Remaining known
+  upstream bug: `use_collapse_code_block.ts` watches a non-reactive array.
+- [ ] **streaming e2e test** — enable 允许流式渲染 + real streamed generation
+  in browser; verify sealed-chunk reconcile + live mode.
 - [ ] **`demacroOnPrompt` WASM prescan** — same pending.
 - [ ] **IntersectionObserver render gating** — currently renders all messages
   in depth range eagerly (parity with upstream); IO gating planned (defers

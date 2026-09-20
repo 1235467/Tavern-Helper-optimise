@@ -15,6 +15,6 @@
     "stubs.d.ts",
     "../../src/core/**/*.ts",
     "../../src/wasm/**/*.ts",
-    "../../src/iframe/script_url.ts"
+    "../../src/iframe/script_url.ts", "../../src/panel/render/macro_like.ts"
   ]
 }

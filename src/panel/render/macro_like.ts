@@ -1,6 +1,7 @@
 import { SendingMessage } from '@/function/event';
 import { macros, type MacroLikeContext } from '@/function/macro_like';
 import { highlight_code, reloadAndRenderChatWithoutEvents, version } from '@/util/tavern';
+import { engine } from '@/wasm/loader';
 import { event_types, eventSource } from '@sillytavern/script';
 import { compare } from 'compare-versions';
 
@@ -31,7 +32,8 @@ function demacroOnPrompt(
       if (typeof message.content === 'string') {
         macro.regex.lastIndex = 0;
         message.content = message.content.replace(macro.regex, (substring: string, ...args: any[]) =>
-          macro.replace({ role: message.role }, substring, ...args),
+          // 'tool' is excluded from MacroLikeContext.role — narrow the union
+          macro.replace({ role: message.role as 'user' }, substring, ...args),
         );
       } else if (Array.isArray(message.content)) {
         message.content
@@ -39,7 +41,7 @@ function demacroOnPrompt(
           .forEach(item => {
             macro.regex.lastIndex = 0;
             item.text = item.text.replace(macro.regex, (substring: string, ...args: any[]) =>
-              macro.replace({ role: message.role }, substring, ...args),
+              macro.replace({ role: message.role as 'user' }, substring, ...args),
             );
           });
       }
@@ -47,18 +49,11 @@ function demacroOnPrompt(
   }
 }
 
-function demacroOnRender($mes: JQuery<HTMLDivElement>) {
+/** verbatim original path — wholesale innerHTML rewrite + iframe teardown.
+ * Kept for custom registerMacroLike regexes whose ^/$/m semantics can't be
+ * evaluated per-text-node. */
+function legacyDemacroOnRender($mes: JQuery<HTMLDivElement>) {
   const $mes_text = $mes.find('.mes_text');
-  if (
-    $mes_text.length === 0 ||
-    !macros.some(macro => {
-      macro.regex.lastIndex = 0;
-      return macro.regex.test($mes_text.text());
-    })
-  ) {
-    return;
-  }
-
   const replace_html = (html: string) =>
     replaceMacroLike(html, { role: $mes.attr('is_user') === 'true' ? 'user' : 'assistant' });
 
@@ -79,6 +74,145 @@ function demacroOnRender($mes: JQuery<HTMLDivElement>) {
     .each((_index, element) => {
       highlight_code(element);
     });
+}
+
+/**
+ * Node-targeted builtin-macro replacement — replaces `{{get_*_variable}}` /
+ * `{{format_*_variable}}` inside individual text nodes instead of rewriting
+ * the whole .mes_text innerHTML (which destroys every rendered iframe).
+ * Driven by engine.scanBuiltinMacros spans (WASM or JS fallback); replacement
+ * still goes through the original macros[0]/macros[1] `replace` fns so
+ * semantics are bit-identical.
+ */
+function builtinDemacroOnRender($mes: JQuery<HTMLDivElement>, recs: ReturnType<typeof engine.scanBuiltinMacros>) {
+  const mes_text = $mes.find('.mes_text')[0];
+  const fullText = mes_text.textContent ?? '';
+  const context: MacroLikeContext = { role: $mes.attr('is_user') === 'true' ? 'user' : 'assistant' };
+  const [getMacro, formatMacro] = macros;
+
+  // text nodes with cumulative offsets (spans are into textContent)
+  const walker = document.createTreeWalker(mes_text, NodeFilter.SHOW_TEXT);
+  const nodes: { node: Text; start: number; end: number }[] = [];
+  let pos = 0;
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const t = n as Text;
+    nodes.push({ node: t, start: pos, end: pos + t.data.length });
+    pos += t.data.length;
+  }
+
+  // group recs by containing node; apply descending within each node so
+  // earlier offsets stay valid
+  const byNode = new Map<number, typeof recs>();
+  for (const rec of recs) {
+    const idx = nodes.findIndex(n => rec.matchStart >= n.start && rec.matchEnd <= n.end);
+    if (idx === -1) continue; // match spans an element boundary — skip (same as legacy effectively)
+    const arr = byNode.get(idx) ?? [];
+    arr.push(rec);
+    byNode.set(idx, arr);
+  }
+
+  const touchedPres = new Set<HTMLElement>();
+  const touchedCodes = new Set<HTMLElement>();
+  const markTouched = (node: Text) => {
+    const pre = (node.parentElement as HTMLElement | null)?.closest('pre');
+    if (pre) {
+      touchedPres.add(pre as HTMLElement);
+      const code = (node.parentElement as HTMLElement | null)?.closest('code');
+      if (code) touchedCodes.add(code as HTMLElement);
+    }
+  };
+
+  for (const [idx, nodeRecs] of byNode) {
+    const { node, start } = nodes[idx];
+    // pathological nesting: the format match's PREFIX text itself contains
+    // another {{format_ — applyFormatVariable's inner recursion rewrites the
+    // prefix and shifts offsets the spans can't track. Fall back to a
+    // whole-node replaceMacroLike for that node (upstream semantics, scoped).
+    const hasNested = nodeRecs.some(
+      r => r.kind === 'format' && /\{\{format_/i.test(fullText.slice(r.matchStart, r.macroStart)),
+    );
+    if (hasNested) {
+      node.data = replaceMacroLike(node.data, context);
+      markTouched(node);
+      continue;
+    }
+    // sort by matchEnd desc: format matches (whose prefix encloses get macros)
+    // apply first — their replacement copies the prefix verbatim, so nested
+    // get spans stay valid; sibling gets apply in descending order too
+    nodeRecs.sort((a, b) => b.matchEnd - a.matchEnd || b.matchStart - a.matchStart);
+    for (const rec of nodeRecs) {
+      const s = rec.matchStart - start;
+      const e = rec.matchEnd - start;
+      if (rec.kind === 'get') {
+        const rep = getMacro.replace(
+          context,
+          fullText.slice(rec.matchStart, rec.matchEnd),
+          rec.scope,
+          fullText.slice(rec.pathStart, rec.pathEnd),
+        );
+        node.data = node.data.slice(0, s) + rep + node.data.slice(e);
+      } else {
+        const rep = formatMacro.replace(
+          context,
+          fullText.slice(rec.matchStart, rec.matchEnd),
+          fullText.slice(rec.matchStart, rec.macroStart),
+          rec.scope,
+          fullText.slice(rec.pathStart, rec.pathEnd),
+        );
+        node.data = node.data.slice(0, s) + rep + node.data.slice(e);
+      }
+      markTouched(node);
+    }
+  }
+
+  // iframes whose backing <pre> changed must remount — drop the iframe and
+  // unhide the pre (the render pipeline re-renders on the same event chain;
+  // unhidden is a safer degraded state than invisible content)
+  touchedPres.forEach(pre => {
+    const wrapper = pre.closest('.TH-render');
+    wrapper?.querySelector('iframe')?.remove();
+    pre.classList.remove('hidden!');
+  });
+  // code-level pass mirrors the original exactly: only codes whose text
+  // STILL contains a macro match (i.e. second-order macros produced by the
+  // replacement) get re-replaced and re-highlighted
+  touchedCodes.forEach(code => {
+    const text = code.textContent ?? '';
+    const hasMacro = macros.some(macro => {
+      macro.regex.lastIndex = 0;
+      return macro.regex.test(text);
+    });
+    if (!hasMacro) {
+      return;
+    }
+    code.textContent = replaceMacroLike(text, context);
+    code.classList.remove('hljs');
+    highlight_code(code);
+  });
+}
+
+function demacroOnRender($mes: JQuery<HTMLDivElement>) {
+  const $mes_text = $mes.find('.mes_text');
+  if ($mes_text.length === 0) {
+    return;
+  }
+  const text = $mes_text.text();
+
+  // WASM prescan for the two builtin macro families + JS test for
+  // user-registered custom macros (arbitrary RegExp can't move to Rust)
+  const builtinRecs = engine.scanBuiltinMacros(text);
+  const customHit = macros.slice(2).some(macro => {
+    macro.regex.lastIndex = 0;
+    return macro.regex.test(text);
+  });
+  if (builtinRecs.length === 0 && !customHit) {
+    return;
+  }
+  if (customHit) {
+    legacyDemacroOnRender($mes);
+    return;
+  }
+  builtinDemacroOnRender($mes, builtinRecs);
 }
 
 function demacroOnRenderOne(message_id: number) {
