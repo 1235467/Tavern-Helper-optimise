@@ -8,9 +8,9 @@
   "hooks": {
     "activate": "activateTauriTavernChatSurface"
   },
-  "author": "KAKAA",
+  "author": "1235467",
   "version": "4.10.0",
-  "homePage": "https://github.com/N0VI028/JS-Slash-Runner",
+  "homePage": "https://github.com/1235467/Tavern-Helper-optimise",
   "auto_update": false,
   "minimum_client_version": "1.12.13",
   "i18n": {
