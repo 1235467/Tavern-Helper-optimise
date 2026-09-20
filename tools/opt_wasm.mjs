@@ -16,6 +16,11 @@ try {
   execFileSync('wasm-opt', ['-Oz', WASM, '-o', WASM], { stdio: 'inherit' });
   const after = fs.statSync(WASM).size;
   console.log(`wasm-opt -Oz: ${(before / 1024).toFixed(1)}KB → ${(after / 1024).toFixed(1)}KB`);
-} catch {
+} catch (e) {
+  // hard-fail in CI — a silent skip ships cargo-only wasm with no signal
+  if (process.env.CI) {
+    console.error('wasm-opt failed in CI:', e?.message ?? e);
+    process.exit(1);
+  }
   console.warn('wasm-opt not found — shipping unoptimized wasm (install binaryen for ~13% size cut)');
 }
