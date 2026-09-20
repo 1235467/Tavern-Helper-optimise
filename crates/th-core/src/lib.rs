@@ -24,14 +24,18 @@ mod vh_rewrite;
 static mut INPUT: Vec<u8> = Vec::new();
 static mut RESULT: Vec<u8> = Vec::new();
 
+// addr_of_mut!/addr_of! instead of &mut/& static access — silences
+// rust_2024 static_mut_refs warnings without changing semantics
+// (single-threaded wasm; no aliasing by construction)
+
 #[no_mangle]
 pub extern "C" fn th_input_ptr() -> *mut u8 {
-    unsafe { INPUT.as_mut_ptr() }
+    unsafe { (*std::ptr::addr_of_mut!(INPUT)).as_mut_ptr() }
 }
 
 #[no_mangle]
 pub extern "C" fn th_input_capacity() -> usize {
-    unsafe { INPUT.capacity() }
+    unsafe { (*std::ptr::addr_of!(INPUT)).capacity() }
 }
 
 /// Grow INPUT capacity to at least `len` (call before writing via the ptr).
@@ -39,8 +43,9 @@ pub extern "C" fn th_input_capacity() -> usize {
 #[no_mangle]
 pub extern "C" fn th_input_ensure(len: usize) {
     unsafe {
-        if INPUT.capacity() < len {
-            INPUT.reserve(len - INPUT.len());
+        let input = &mut *std::ptr::addr_of_mut!(INPUT);
+        if input.capacity() < len {
+            input.reserve(len - input.len());
         }
     }
 }
@@ -50,18 +55,18 @@ pub extern "C" fn th_input_ensure(len: usize) {
 pub extern "C" fn th_input_set_len(len: usize) {
     unsafe {
         th_input_ensure(len);
-        INPUT.set_len(len);
+        (*std::ptr::addr_of_mut!(INPUT)).set_len(len);
     }
 }
 
 #[no_mangle]
 pub extern "C" fn th_result_ptr() -> *const u8 {
-    unsafe { RESULT.as_ptr() }
+    unsafe { (*std::ptr::addr_of!(RESULT)).as_ptr() }
 }
 
 #[no_mangle]
 pub extern "C" fn th_result_len() -> usize {
-    unsafe { RESULT.len() }
+    unsafe { (*std::ptr::addr_of!(RESULT)).len() }
 }
 
 pub(crate) fn input() -> &'static [u8] {
@@ -69,7 +74,7 @@ pub(crate) fn input() -> &'static [u8] {
 }
 
 pub(crate) fn set_result(bytes: Vec<u8>) {
-    unsafe { RESULT = bytes; }
+    unsafe { *std::ptr::addr_of_mut!(RESULT) = bytes; }
 }
 
 pub(crate) fn set_result_str(s: String) {

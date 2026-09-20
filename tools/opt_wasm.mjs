@@ -13,7 +13,9 @@ if (!fs.existsSync(WASM)) {
 
 try {
   const before = fs.statSync(WASM).size;
-  execFileSync('wasm-opt', ['-Oz', WASM, '-o', WASM], { stdio: 'inherit' });
+  // --all-features: modern rustc emits bulk-memory ops + saturating fptoint,
+  // which binaryen rejects by default (wasm-validator error on CI)
+  execFileSync('wasm-opt', ['-Oz', '--all-features', WASM, '-o', WASM], { stdio: 'inherit' });
   const after = fs.statSync(WASM).size;
   console.log(`wasm-opt -Oz: ${(before / 1024).toFixed(1)}KB → ${(after / 1024).toFixed(1)}KB`);
 } catch (e) {
