@@ -76,6 +76,8 @@ reconciliation, th-env bundle, ABI checklist).
   - `/api/extensions/discover` lists `third-party/JS-Slash-Runner` ✓
   - manifest/index.js/th_core.wasm/th-env.js all serve 200;
     wasm MIME = `application/wasm` (instantiateStreaming works)
+  - **user-verified in Firefox**: extension activates, panel mounts,
+    frontend code blocks render in iframes — after the absolute-base fix
 - **Settings schema** ✅ additive: `render.streaming_mode|'env_source'|'engine'`
 - **Render.vue gate** ✅ legacy teleport pipeline + Streaming.vue only mount
   in `engine==='legacy'`
