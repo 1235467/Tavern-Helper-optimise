@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Rust+WASM-core rewrite of JS-Slash-Runner (Tavern-Helper) — drop-in ABI-compatible SillyTavern extension, optimized for Firefox desktop & Android",
   "scripts": {
-    "build:wasm": "cargo build --release --target wasm32-unknown-unknown --manifest-path crates/th-core/Cargo.toml",
+    "build:wasm": "cargo build --release --target wasm32-unknown-unknown --manifest-path crates/th-core/Cargo.toml && node tools/opt_wasm.mjs",
     "build:env": "node tools/build_th_env.mjs",
     "build": "pnpm run build:env && vite build",
     "build:full": "pnpm run build:wasm && pnpm run build:env && vite build",

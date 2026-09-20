@@ -86,8 +86,10 @@ jobs:
           toolchain: stable
           target: wasm32-unknown-unknown
           override: true
-      - name: Build th_core.wasm
-        run: cargo build --release --target wasm32-unknown-unknown --manifest-path crates/th-core/Cargo.toml
+      - name: Install binaryen (wasm-opt)
+        run: sudo apt-get update -qq && sudo apt-get install -y binaryen
+      - name: Build th_core.wasm (+ wasm-opt -Oz)
+        run: cargo build --release --target wasm32-unknown-unknown --manifest-path crates/th-core/Cargo.toml && node tools/opt_wasm.mjs
 
       # js deps + build
       - uses: actions/setup-node@v4

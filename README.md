@@ -20,7 +20,7 @@ optimized for **Firefox desktop and Firefox Android**.
 | Render bookkeeping | O(chat) lodash chains + Vue reactivity per event | `Map`/`Set` registry, Vue-free hot path |
 | Log capture | unbounded reactive arrays; full flatten+sort per entry | 500-entry ring buffer per iframe + throttled version tick |
 | Settings saves | deep-watch → klona whole settings per leaf write | *(planned: dirty tracking — see IMPLEMENTATION.md)* |
-| Compute | all JS, main thread | `th-core` WASM (~112KB, zero-dependency raw ABI) + verbatim JS fallbacks |
+| Compute | all JS, main thread | `th-core` WASM (~97KB, zero-dependency raw ABI) + verbatim JS fallbacks |
 
 ## Architecture
 

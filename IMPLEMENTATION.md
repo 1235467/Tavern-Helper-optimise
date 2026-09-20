@@ -13,7 +13,7 @@ reconciliation, th-env bundle, ABI checklist).
   - `tests/contract/wasm_smoke.test.mjs` + `parity.test.mjs`: real
     `th_core.wasm` ↔ pure-JS fallbacks ↔ hand-derived expected semantics.
     **15 tests, all green** (node:test, no npm deps needed).
-- **WASM core** ✅ `crates/th-core` — zero-dep, raw extern-"C" ABI, ~112KB:
+- **WASM core** ✅ `crates/th-core` — zero-dep, raw extern-"C" ABI, ~97KB:
   - `is_frontend` — `html>`|`<head>`|`<body` substring check
   - `rewrite_srcdoc` — fused port of `replaceVhInContent` (all 4 passes +
     strict early-out, bug-for-bug: no `\b` before digits in convert, `\b`
@@ -65,7 +65,7 @@ reconciliation, th-env bundle, ABI checklist).
   → separate rollup chunk (Panel + its deps load on first open, off cold path)
 - **verified build** ✅ `pnpm run build:env` → `lib/th-env.js` 470KB /
   `th-env.css` 86KB; `vite build` → `dist/index.js` **303KB (80KB gzip)** vs
-  upstream 1.1MB + 1.2MB eager jsoneditor; `dist/th_core.wasm` 112KB;
+  upstream 1.1MB + 1.2MB eager jsoneditor; `dist/th_core.wasm` 97KB;
   Panel/plugins/vue-tippy all deferred chunks. 20 contract + 2 vitest tests
   green on node 23.
 - **verified in real SillyTavern** ✅ repo symlinked into
