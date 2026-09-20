@@ -18,9 +18,9 @@ const JS_PARTS = [
   ['jquery', 'dist/jquery.min.js'],
   ['jquery-ui-dist', 'jquery-ui.min.js'],
   ['jquery-ui-touch-punch', 'jquery.ui.touch-punch.min.js'],
-  ['vue', 'dist/vue.runtime.global.prod.min.js'],
+  ['vue', 'dist/vue.runtime.global.prod.js'],
   // vue-router@4 is the version the CDN html used (v5 has no global build)
-  ['vue-router4', 'dist/vue-router.global.prod.min.js'],
+  ['vue-router4', 'dist/vue-router.global.prod.js'],
 ];
 
 const CSS_PARTS = [

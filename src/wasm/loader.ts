@@ -44,8 +44,6 @@ export interface MacroRecord {
   pathEnd: number;
 }
 
-export type { PartitionChunk };
-
 let wasm_instance: ThCore | null = null;
 let wasm_ready: Promise<ThCore | null> | null = null;
 
@@ -94,5 +92,5 @@ export const engine = {
     wasm_instance?.findFrontendBlocks(s) ?? jsFindFrontendBlocks(s),
 
   scanBuiltinMacros: (s: string): MacroRecord[] =>
-    wasm_instance?.scanBuiltinMacros(s) ?? jsScanBuiltinMacros(s),
+    (wasm_instance?.scanBuiltinMacros(s) ?? jsScanBuiltinMacros(s)) as MacroRecord[],
 };

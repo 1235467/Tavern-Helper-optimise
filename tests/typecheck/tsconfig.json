@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false,
+    "esModuleInterop": true,
+    "paths": { "@/*": ["../../src/*"] }
+  },
+  "include": [
+    "stubs.d.ts",
+    "../../src/core/**/*.ts",
+    "../../src/wasm/**/*.ts",
+    "../../src/iframe/script_url.ts"
+  ]
+}

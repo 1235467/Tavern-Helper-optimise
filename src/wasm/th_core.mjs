@@ -141,8 +141,10 @@ export class ThCore {
   /**
    * Locate frontend <pre> blocks.
    * @returns {Array<{outerStart:number, outerEnd:number, innerStart:number,
-   *          innerEnd:number, code():string}>} — offsets are JS string indices
-   *   (UTF-16), matching the pure-JS fallback's contract.
+   *          innerEnd:number, ordinal:number, sealed:boolean, code():string}>}
+   *   offsets are JS string indices (UTF-16), matching the pure-JS fallback's
+   *   contract; ordinal pairs with querySelectorAll('pre'); sealed = close
+   *   tag seen (streaming freeze for inner pres).
    */
   findFrontendBlocks(str) {
     const bytes = this._setInput(str);

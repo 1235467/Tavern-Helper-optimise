@@ -56,7 +56,8 @@ export class MessageIframe {
     eventSource.emit('message_iframe_render_started', this.name);
   }
 
-  private postViewportHeight() {
+  /** internal — used by the shared resize broadcaster */
+  postViewportHeight() {
     this.iframe.contentWindow?.postMessage({ type: 'TH_UPDATE_VIEWPORT_HEIGHT' }, '*');
   }
 

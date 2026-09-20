@@ -63,6 +63,11 @@ reconciliation, th-env bundle, ABI checklist).
   (1.2MB off startup path); local `Mode`/`ValidationSeverity` consts
 - **Panel lazy mount** ✅ `defineAsyncComponent(() => import('@/Panel.vue'))`
   → separate rollup chunk (Panel + its deps load on first open, off cold path)
+- **verified build** ✅ `pnpm run build:env` → `lib/th-env.js` 470KB /
+  `th-env.css` 86KB; `vite build` → `dist/index.js` **303KB (80KB gzip)** vs
+  upstream 1.1MB + 1.2MB eager jsoneditor; `dist/th_core.wasm` 112KB;
+  Panel/plugins/vue-tippy all deferred chunks. 20 contract + 2 vitest tests
+  green on node 23.
 - **Settings schema** ✅ additive: `render.streaming_mode|'env_source'|'engine'`
 - **Render.vue gate** ✅ legacy teleport pipeline + Streaming.vue only mount
   in `engine==='legacy'`
@@ -93,8 +98,8 @@ reconciliation, th-env bundle, ABI checklist).
   per-token; add the update event + changelog note.
 - [ ] **e2e playwright suite** + perf gate (assert bounded iframe reload count
   on a recorded token stream).
-- [ ] **typecheck/build run** — no npm here: `pnpm i && pnpm run build` needs
-  a real env (vue-tsc pass will surface small typing fixes in core/*.ts).
+- [ ] **full vue-tsc pass** — scoped check of core/wasm is clean
+  (`tests/typecheck/`); a full run needs an ST checkout for `@sillytavern/*`.
 - [ ] **dist/ shipping model** — decide whether dist is committed (upstream
   model) or CI-built.
 - [ ] **boot guard** — warn+refuse when another `window.TavernHelper` with a

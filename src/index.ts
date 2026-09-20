@@ -11,9 +11,6 @@ import { wasmReady } from '@/wasm/loader';
 import { useGlobalSettingsStore } from '@/store/settings';
 import { getCurrentLocale } from '@sillytavern/scripts/i18n';
 import { App } from 'vue';
-import { createVfm } from 'vue-final-modal';
-import 'vue-final-modal/style.css';
-import VueTippy from 'vue-tippy';
 
 export { activateTauriTavernChatSurface } from '@/tauritavern_chat_surface';
 
@@ -27,11 +24,6 @@ const pinia = createPinia();
 setActivePinia(pinia); // stores must work before mount (env bridge uses them)
 app.use(pinia);
 
-const vfm = createVfm();
-app.use(vfm);
-
-app.use(VueTippy);
-
 declare module 'vue' {
   interface ComponentCustomProperties {
     t: typeof t;
@@ -44,7 +36,7 @@ const i18n = {
 };
 app.use(i18n);
 
-$(() => {
+$(async () => {
   z.config(getCurrentLocale().includes('zh') ? z.locales.zhCN() : z.locales.en());
   registerMacros();
   registerSwipeEvent();
@@ -69,6 +61,9 @@ $(() => {
   } as EnvProvider);
 
   const $app = $('<div id="tavern_helper">').appendTo('#extensions_settings');
+  // vfm + tippy (~560KB) install from the deferred panel chunk
+  const { default: installPanelPlugins } = await import('@/panel/plugins');
+  installPanelPlugins(app);
   app.mount($app[0]);
 
   // start AFTER app.mount: Render.vue's useMacroLike registers demacro
