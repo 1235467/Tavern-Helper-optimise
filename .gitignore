@@ -1,11 +1,8 @@
-node_modules/
-dist/*.js
-dist/*.css
-dist/*.map
-dist/th_core.wasm
-lib/th-env.js
-lib/th-env.css
-lib/webfonts/
+/node_modules/
+# dist/ and lib/th-env.* are CI-built artifacts — COMMITTED to the repo by
+# the bundle workflow (install-by-clone serves them straight from git)
+# NB: src/iframe/node_modules/log.js IS source (an iframe bootstrap), the
+# root-anchored rule above keeps it tracked
 crates/th-core/target/
 *.log
 .DS_Store
