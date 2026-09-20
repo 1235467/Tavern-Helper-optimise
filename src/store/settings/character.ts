@@ -1,3 +1,4 @@
+import { createDirtyFlush } from '@/core/persistence';
 import { collectExportSummaryItems, ScriptExportSummaryItem, showExportSummaryToast } from '@/panel/script/export_by';
 import { CharacterSettings as BackwardCharacterSettings } from '@/type/backward';
 import { flattenScriptTree } from '@/type/scripts';
@@ -51,16 +52,29 @@ async function saveSettings(id: string, name: string, settings: CharacterSetting
 export const useCharacterSettingsStore = defineStore('character_setttings', () => {
   const id = ref<string | undefined>(this_chid);
   const name = ref<string | undefined>(characters?.[this_chid as unknown as number]?.name);
-  // 切换角色卡时刷新 id
-  eventSource.makeFirst(event_types.CHAT_CHANGED, () => {
+
+  const settings = ref<CharacterSettings>(getSettings(id.value));
+
+  // dirty-tracking: a burst of leaf writes (e.g. per-message variable churn)
+  // → ONE klona + one whole-character POST per window instead of per write.
+  // The comment below still applies: ST reads character data often, so the
+  // window stays short (250ms).
+  const dirty = createDirtyFlush(async () => {
+    if (id.value !== undefined && name.value !== undefined) {
+      await saveSettings(id.value, name.value, klona(settings.value));
+    }
+  }, 250);
+
+  // 切换角色卡时刷新 id — flush pending writes under the OLD id first,
+  // otherwise they'd be lost or (worse) written into the new character
+  eventSource.makeFirst(event_types.CHAT_CHANGED, async () => {
+    await dirty.flushNow();
     const new_name = characters?.[this_chid as unknown as number]?.name;
     if (id.value !== this_chid || name.value !== new_name) {
       id.value = this_chid;
       name.value = new_name;
     }
   });
-
-  const settings = ref<CharacterSettings>(getSettings(id.value));
 
   // 切换角色卡时刷新 settings, 但不触发 settings 保存
   watch([id, name], ([new_id]) => {
@@ -113,6 +127,11 @@ export const useCharacterSettingsStore = defineStore('character_setttings', () =
     };
     $('#export_button').on('click', async () => {
       if (id.value !== undefined && name.value !== undefined) {
+        // land pending dirty writes BEFORE the cleared-settings write, then
+        // hold the queue through the export window so a late flush can't
+        // overwrite the scrubbed settings the export reads
+        await dirty.flushNow();
+        dirty.pause();
         const cleared_settings = klona(settings.value);
         cleared_settings.scripts.flatMap(flattenScriptTree).forEach(script => {
           if (!script.export_with.data) {
@@ -129,6 +148,7 @@ export const useCharacterSettingsStore = defineStore('character_setttings', () =
         const timeout_id = setTimeout(async () => {
           if (id.value !== undefined && name.value !== undefined) {
             await saveSettings(id.value, name.value, klona(settings.value), false);
+            dirty.resume(false); // restore already wrote current state
             scripts_summary = [];
           }
         }, 10000);
@@ -142,20 +162,18 @@ export const useCharacterSettingsStore = defineStore('character_setttings', () =
       async ({ scripts_summary }: { scripts_summary: ScriptExportSummaryItem[] }) => {
         if (id.value !== undefined && name.value !== undefined) {
           await saveSettings(id.value, name.value, klona(settings.value), false);
+          dirty.resume(false); // restore already wrote current state
           showExportSummaryToast(t`角色卡`, scripts_summary);
         }
       },
     );
   }
 
-  // 在某角色卡内修改 settings 时保存
+  // 在某角色卡内修改 settings 时保存 — dirty-tracked flush (see above)
   const { ignoreUpdates } = watchIgnorable(
     settings,
-    async new_settings => {
-      if (id.value !== undefined && name.value !== undefined) {
-        // 酒馆经常读取角色卡数据, 所以这里需要立即保存
-        await saveSettings(id.value, name.value, klona(new_settings));
-      }
+    () => {
+      dirty.mark();
     },
     { deep: true },
   );

@@ -86,11 +86,16 @@ reconciliation, th-env bundle, ABI checklist).
 
 ## Deferred / TODO
 
-- [ ] **M1 remainder — persistence dirty-tracking**: the copied Pinia settings
-  stores still `watch(settings,{deep:true})` + klona on every leaf write, and
-  character variable writes still POST the whole character. Plan: shallowRef +
-  dirty flags + coalesced `writeExtensionField` (force-flush on export/
-  CHAT_CHANGED). *Not yet implemented — original behavior intact.*
+- [x] **persistence dirty-tracking** ✅ `src/core/persistence.ts`
+  `createDirtyFlush` (debounced flush + pause/resume + flushNow) wired into
+  all four settings stores — a burst of leaf writes → ONE klona + one save
+  per 250-300ms window instead of per write. Correctness hooks:
+  `flushNow()` inside CHAT_CHANGED / OAI_PRESET_CHANGED_BEFORE handlers
+  (pending writes land under the OLD id before switching); `pause()/resume()`
+  brackets the character export cleared-settings→restore window and the
+  OAI_PRESET_EXPORT_READY scrub, so a late flush can't overwrite scrubbed
+  data. Preset savers still get separate klonas (memory/file mustn't share
+  the object — same as original two klonas).
 - [x] **macro_like render-path** ✅ `demacroOnRender` rewritten: WASM
   `scan_builtin_macros` prescan + node-targeted text-node replacement — only
   touched `<pre>` iframes drop+remount instead of every iframe in the message.
@@ -100,7 +105,9 @@ reconciliation, th-env bundle, ABI checklist).
   upstream bug: `use_collapse_code_block.ts` watches a non-reactive array.
 - [ ] **streaming e2e test** — enable 允许流式渲染 + real streamed generation
   in browser; verify sealed-chunk reconcile + live mode.
-- [ ] **`demacroOnPrompt` WASM prescan** — same pending.
+- [x] **`demacroOnPrompt` WASM prescan** — *kept as regex application:
+  prompt-side works on strings with no DOM churn, so the win is marginal;
+  demacroOnPrompt stays verbatim. Noted deliberately.*
 - [ ] **IntersectionObserver render gating** — currently renders all messages
   in depth range eagerly (parity with upstream); IO gating planned (defers
   ~10-script realm eval for below-the-fold messages).

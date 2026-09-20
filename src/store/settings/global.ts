@@ -1,3 +1,4 @@
+import { createDirtyFlush } from '@/core/persistence';
 import { GlobalSettings as BackwardGlobalSettings } from '@/type/backward';
 import { GlobalSettings, setting_field } from '@/type/settings';
 import { APP_READY_EVENTS } from '@/util/tavern';
@@ -37,11 +38,15 @@ export const useGlobalSettingsStore = defineStore('global_settings', () => {
   );
 
   const settings = ref<GlobalSettings>(getSettings());
+  // dirty-tracking: a burst of leaf writes → one klona + one save per window
+  const dirty = createDirtyFlush(() => {
+    _.set(extension_settings, setting_field, klona(settings.value));
+    saveSettingsDebounced();
+  });
   watch(
     settings,
-    new_settings => {
-      _.set(extension_settings, setting_field, klona(new_settings));
-      saveSettingsDebounced();
+    () => {
+      dirty.mark();
     },
     { deep: true },
   );
