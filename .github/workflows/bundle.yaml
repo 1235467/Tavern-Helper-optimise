@@ -80,6 +80,16 @@ jobs:
           replace: ${{ steps.package_version.outputs.result }}
           regex: true
 
+      # node + pnpm first — binaryen comes from npm (apt's binaryen-108 is
+      # too old for modern-rustc wasm and silently fails the -Oz pass)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 10
+      - run: npm i -g binaryen
+
       # rust toolchain for the th-core WASM core
       - uses: actions-rs/toolchain@v1
         with:
@@ -89,16 +99,7 @@ jobs:
       - name: Build th_core.wasm (+ wasm-opt -Oz)
         run: cargo build --release --target wasm32-unknown-unknown --manifest-path crates/th-core/Cargo.toml && node tools/opt_wasm.mjs
 
-      # js deps + build (node first — binaryen comes from npm, not apt:
-      # apt's binaryen-108 is too old for modern-rustc wasm and silently
-      # fails the -Oz pass; npm ships a current binaryen)
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - uses: pnpm/action-setup@v4.1.0
-        with:
-          version: 10
-      - run: npm i -g binaryen
+      # js deps + build
       - run: pnpm i
       - run: pnpm run build:env
       - run: ST_IMPORT_DEPTH=5 pnpm run build
