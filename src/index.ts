@@ -38,9 +38,20 @@ app.use(i18n);
 
 $(async () => {
   z.config(getCurrentLocale().includes('zh') ? z.locales.zhCN() : z.locales.en());
+
+  // boot guard: a second TavernHelper means the original extension is also
+  // active — they MUST NOT run side-by-side (same ABI, double everything)
+  if ((globalThis as any).TavernHelper !== undefined) {
+    const msg = '[tavern-helper-ng] 检测到已存在 TavernHelper — 原版与 ng 不能同时启用, 请禁用其中一个';
+    console.error(msg);
+    toastr.error('检测到重复的酒馆助手实例, 请禁用其中一个后刷新', 'tavern-helper-ng');
+    // still initialize (last writer wins) but the warning is visible
+  }
+
   registerMacros();
   registerSwipeEvent();
   initTavernHelperObject();
+  (globalThis as any).TavernHelper.__th_ng = true; // build-stamp for guards
   initThirdPartyObject();
   initSlashCommands();
 

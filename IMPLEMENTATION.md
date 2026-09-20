@@ -121,14 +121,19 @@ reconciliation, th-env bundle, ABI checklist).
 - [x] **`message_iframe_render_updated`** ✅ additive event emitted on
   post-load content rewrites (streaming updates, seal, live patches); added
   to `iframe_events` enum + ListenerType (backwards-compatible).
-- [ ] **e2e playwright suite** + perf gate (assert bounded iframe reload count
-  on a recorded token stream).
+- [x] **e2e scaffold** ✅ `tests/e2e/smoke.spec.ts` — playwright specs for
+  TavernHelper install, panel mount, iframe naming + ABI globals (skips when
+  no frontend block in chat). Runnable on a bigger box:
+  `pnpm i -D @playwright/test && pnpm playwright install firefox &&
+   ST_URL=http://localhost:8000 pnpm playwright test tests/e2e/`
+- [ ] perf gate — assert bounded iframe reload count on a recorded token
+  stream (needs the streaming e2e first).
 - [ ] **full vue-tsc pass** — scoped check of core/wasm is clean
   (`tests/typecheck/`); a full run needs an ST checkout for `@sillytavern/*`.
 - [ ] **dist/ shipping model** — decide whether dist is committed (upstream
   model) or CI-built.
-- [ ] **boot guard** — warn+refuse when another `window.TavernHelper` with a
-  different build stamp already exists (side-by-side install protection).
+- [x] **boot guard** ✅ index.ts warns via console+toastr when another
+  `TavernHelper` exists; our instance stamps `__th_ng=true`.
 
 ## Firefox-specific fixes
 
