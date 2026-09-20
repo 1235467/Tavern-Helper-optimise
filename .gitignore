@@ -1,0 +1,11 @@
+node_modules/
+dist/*.js
+dist/*.css
+dist/*.map
+dist/th_core.wasm
+lib/th-env.js
+lib/th-env.css
+lib/webfonts/
+crates/th-core/target/
+*.log
+.DS_Store

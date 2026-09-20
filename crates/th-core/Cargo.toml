@@ -1,0 +1,15 @@
+[package]
+name = "th-core"
+version = "0.1.0"
+edition = "2021"
+description = "tavern-helper-ng compute core: HTML tokenizer, streaming partitioner, srcdoc rewriter, entity decoder, macro scanner"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = "symbols"
