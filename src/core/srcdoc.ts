@@ -21,6 +21,7 @@ import third_party_message from '@/iframe/third_party_message.html?raw';
 import third_party_script from '@/iframe/third_party_script.html?raw';
 import { engine } from '@/wasm/loader';
 import { env } from '@/core/env';
+import { importmapTag } from '@/core/module_cache/registry';
 import { getCharAvatarPath, getUserAvatarPath } from '@/util/tavern';
 
 /** extension dir name — injected at build (default JS-Slash-Runner, EXT_DIR override) */
@@ -70,6 +71,7 @@ export function createMessageSrcdoc(content: string, useBlobUrl: boolean, liveSt
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+${importmapTag()}
 ${useBlobUrl ? `<base href="${window.location.origin}"/>` : ''}
 <style>
 *,*::before,*::after{box-sizing:border-box;}
@@ -96,6 +98,7 @@ export function createScriptSrcdoc(content: string, useBlobUrl: boolean, useClea
   return `<!DOCTYPE html>
 <html>
 <head>
+${importmapTag()}
 ${useBlobUrl ? `<base href="${window.location.origin}"/>` : ''}
 ${thirdPartyScriptBlock()}
 <script src="${parent_jquery_url}"></script>

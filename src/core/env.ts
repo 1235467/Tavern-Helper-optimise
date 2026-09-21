@@ -34,6 +34,8 @@ export interface RenderEnv {
    * stays visible until it scrolls into view.
    */
   io_gate: boolean;
+  /** module CDN cache — importmap-served local copies of CDN imports */
+  module_cache: boolean;
 }
 
 export const defaultRenderEnv: RenderEnv = {
@@ -49,6 +51,7 @@ export const defaultRenderEnv: RenderEnv = {
   env_source: 'local',
   engine: 'ng',
   io_gate: true,
+  module_cache: true,
 };
 
 export interface EnvProvider {

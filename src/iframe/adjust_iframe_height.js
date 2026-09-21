@@ -1,5 +1,11 @@
 (function () {
   let scheduled = false;
+  let lastHeight = 0;
+
+  // delta gate: tiny resizes (animations, sub-pixel churn) don't deserve a
+  // parent-document reflow — an animated frontend mutating at frame rate
+  // would otherwise trigger a SetNeedStyleFlush+reflow per frame.
+  const MIN_DELTA = 4;
 
   function measureAndPost() {
     scheduled = false;
@@ -18,7 +24,10 @@
         return;
       }
 
-      frameElement.style.height = `${height}px`;
+      if (Math.abs(height - lastHeight) >= MIN_DELTA) {
+        lastHeight = height;
+        frameElement.style.height = `${height}px`;
+      }
     } catch {
       //
     }

@@ -4,9 +4,11 @@ import { registerMacros } from '@/macro';
 import { registerSwipeEvent } from '@/swipe';
 import { initSlashCommands } from '@/slash_command/index';
 import { initThirdPartyObject } from '@/third_party_object';
-import { setEnvProvider, type EnvProvider, type RenderEnv } from '@/core/env';
+import { env, onEnvChange, setEnvProvider, type EnvProvider, type RenderEnv } from '@/core/env';
+import { initModuleCache, revokeAll as revokeModuleBlobs, warmContent } from '@/core/module_cache';
 import { RenderEngine } from '@/core/render_engine';
 import { usesManagedChatSurface } from '@/tauritavern_chat_surface';
+import { useScriptIframeRuntimesStore } from '@/store/iframe_runtimes';
 import { wasmReady } from '@/wasm/loader';
 import { useGlobalSettingsStore } from '@/store/settings';
 import { getCurrentLocale } from '@sillytavern/scripts/i18n';
@@ -55,6 +57,10 @@ $(async () => {
   initThirdPartyObject();
   initSlashCommands();
 
+  // module cache: preload IDB records → session registry (fire-and-forget;
+  // the script-iframe mount gate handles the bounded wait itself)
+  void initModuleCache();
+
   // env bridge: bind the Pinia settings store onto the plain RenderEnv
   // interface the core engine consumes (core stays Vue-free).
   const settings = useGlobalSettingsStore();
@@ -70,6 +76,17 @@ $(async () => {
       );
     },
   } as EnvProvider);
+
+  // env changes that need action beyond a re-audit: module_cache flip kicks
+  // a warm pass + script reloadAll (importmap only applies at next srcdoc
+  // anyway — reload just makes it immediate)
+  onEnvChange(() => {
+    if (env().module_cache) {
+      for (const { script } of useScriptIframeRuntimesStore().enabled_scripts) {
+        void warmContent(script.content);
+      }
+    }
+  });
 
   const $app = $('<div id="tavern_helper">').appendTo('#extensions_settings');
   // vfm + tippy (~560KB) install from the deferred panel chunk — a chunk
@@ -94,5 +111,6 @@ $(async () => {
 });
 
 $(window).on('pagehide', () => {
+  revokeModuleBlobs();
   app.unmount();
 });

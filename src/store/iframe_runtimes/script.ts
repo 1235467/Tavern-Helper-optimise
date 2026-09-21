@@ -1,3 +1,6 @@
+import { env } from '@/core/env';
+import { gateForEntries } from '@/core/module_cache';
+import { extractCdnImportUrls } from '@/core/module_cache/specifiers';
 import { useCharacterScriptsStore, useGlobalScriptsStore, usePresetScriptsStore } from '@/store/scripts';
 import { useGlobalSettingsStore } from '@/store/settings';
 import { Script } from '@/type/scripts';
@@ -31,7 +34,28 @@ export const useScriptIframeRuntimesStore = defineStore('script_iframe_runtimes'
       : [];
   });
 
+  // module-cache mount gate: kick the dedup'd crawl for all CDN URLs in
+  // enabled scripts, and defer iframe mounting until the ~1.5s gate
+  // resolves — one crawl vs N per-iframe waterfalls
+  const module_gate_ready = ref(!env().module_cache);
+  watch(
+    () => enabled_scripts_with_source.value.map(i => i.script.content),
+    contents => {
+      const urls = _(contents).flatMap(c => extractCdnImportUrls(c)).uniq().value();
+      module_gate_ready.value = !env().module_cache || urls.length === 0;
+      if (!module_gate_ready.value) {
+        void gateForEntries(urls).finally(() => {
+          module_gate_ready.value = true;
+        });
+      }
+    },
+    { immediate: true },
+  );
+
   const runtimes = computed(() => {
+    if (env().module_cache && !module_gate_ready.value) {
+      return []; // gate: defer mounts until the dedup'd crawl settles
+    }
     return _(enabled_scripts_with_source.value)
       .map(item => ({
         id: item.script.id,

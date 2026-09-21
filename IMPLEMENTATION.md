@@ -105,6 +105,19 @@ reconciliation, th-env bundle, ABI checklist).
   upstream bug: `use_collapse_code_block.ts` watches a non-reactive array.
 - [ ] **streaming e2e test** — enable 允许流式渲染 + real streamed generation
   in browser; verify sealed-chunk reconcile + live mode.
+- [x] **module CDN cache** ✅ `src/core/module_cache/` — recursive crawler
+  fetches CDN imports → rewrites nested specifiers to absolute URLs →
+  IndexedDB → per-srcdoc `<script type="importmap">` mapping absolute URL →
+  session blob URL. `render.module_cache` (default on), mount gate
+  (~1.5s dedup'd crawl) in store/iframe_runtimes/script.ts, panel
+  ModuleCache.vue manager, `prefetchModule`/`moduleCache` additive API.
+  Progressive: any miss/failure falls back to CDN as today. Also wired
+  panel/script/iframe.ts to `createScriptSrcdoc` (was dead code — kills
+  the 3-CDN env fetches per script iframe). 18 vitest cases green.
+- [x] **delta-gated auto-height** ✅ `adjust_iframe_height.js` — only writes
+  `frameElement.style.height` when |Δ| ≥ 4px (was: every ResizeObserver fire
+  → parent-doc reflow per frame for animated frontends — the Rhea profile's
+  59k-style-flush amplifier).
 - [x] **`demacroOnPrompt` WASM prescan** — *kept as regex application:
   prompt-side works on strings with no DOM churn, so the win is marginal;
   demacroOnPrompt stays verbatim. Noted deliberately.*
