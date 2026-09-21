@@ -7,7 +7,7 @@ import { idbClear, idbDelete } from '@/core/module_cache/db';
 import {
   clearRegistry,
   entries as registryEntries,
-  register,
+  setOnRegister,
   totalBytes,
   unregister,
 } from '@/core/module_cache/registry';
@@ -24,6 +24,8 @@ export interface CacheEntry {
 export const useModuleCacheStore = defineStore('module_cache', () => {
   const version = ref(0);
   const bump = _.debounce(() => version.value++, 200);
+  // the crawler calls register() per stored module — bump the UI tick
+  setOnRegister(() => bump());
 
   const entries = computed<CacheEntry[]>(() => {
     void version.value;

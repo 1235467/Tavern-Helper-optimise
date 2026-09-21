@@ -17,6 +17,12 @@ interface RegistryEntry {
 
 const registry = new Map<string, RegistryEntry>();
 
+/** UI hook — the pinia facade subscribes here to bump its version tick */
+let onRegisterCb: (url: string) => void = () => {};
+export function setOnRegister(cb: (url: string) => void) {
+  onRegisterCb = cb;
+}
+
 function mintBlob(text: string, contentType: string): string {
   return URL.createObjectURL(new Blob([text], { type: contentType || 'text/javascript' }));
 }
@@ -32,6 +38,11 @@ export function register(url: string, rec: { text: string; contentType: string; 
     bytes: rec.bytes ?? rec.text.length,
     fetchedAt: rec.fetchedAt ?? Date.now(),
   });
+  try {
+    onRegisterCb(url);
+  } catch {
+    // UI callback must never break caching
+  }
   return blob;
 }
 

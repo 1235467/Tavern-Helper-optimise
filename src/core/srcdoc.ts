@@ -22,6 +22,7 @@ import third_party_script from '@/iframe/third_party_script.html?raw';
 import { engine } from '@/wasm/loader';
 import { env } from '@/core/env';
 import { importmapTag } from '@/core/module_cache/registry';
+import { warmContent } from '@/core/module_cache';
 import { getCharAvatarPath, getUserAvatarPath } from '@/util/tavern';
 
 /** extension dir name — injected at build (default JS-Slash-Runner, EXT_DIR override) */
@@ -65,6 +66,7 @@ function logScript(): string {
  * HTML deltas instead of reloading srcdoc.
  */
 export function createMessageSrcdoc(content: string, useBlobUrl: boolean, liveStreaming = false): string {
+  void warmContent(content); // warm CDN imports found in frontend code too
   const rewritten = engine.rewriteSrcdoc(content);
   return `<!DOCTYPE html>
 <html>
