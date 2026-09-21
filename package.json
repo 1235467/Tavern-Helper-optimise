@@ -1,7 +1,7 @@
 {
   "name": "tavern-helper-ng",
   "version": "0.1.0",
-  "description": "Rust+WASM-core rewrite of JS-Slash-Runner (Tavern-Helper) — drop-in ABI-compatible SillyTavern extension, optimized for Firefox desktop & Android",
+  "description": "Rust+WASM-core rewrite of JS-Slash-Runner (Tavern-Helper) \u2014 drop-in ABI-compatible SillyTavern extension, optimized for Firefox desktop & Android",
   "scripts": {
     "build:wasm": "cargo build --release --target wasm32-unknown-unknown --manifest-path crates/th-core/Cargo.toml && node tools/opt_wasm.mjs",
     "build:env": "node tools/build_th_env.mjs",
@@ -75,14 +75,12 @@
     "@vueuse/integrations": "^14.4.0",
     "@vueuse/shared": "^14.4.0",
     "async-wait-until": "^2.0.31",
-    "axios": "1.18.1",
     "compare-versions": "^6.1.1",
     "deep-object-diff": "^1.1.9",
     "destr": "^2.0.5",
     "emittery": "^2.0.0",
     "is-blob": "^3.0.0",
     "is-promise": "^4.0.0",
-    "jszip": "^3.10.2",
     "klona": "^2.0.6",
     "lodash-omitdeep": "^1.10.1",
     "object-to-formdata": "^4.5.1",

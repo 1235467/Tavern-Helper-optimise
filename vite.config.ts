@@ -149,7 +149,9 @@ export default defineConfig(({ mode }) => ({
     outDir: 'dist',
     emptyOutDir: false,
 
-    sourcemap: mode === 'production' ? true : 'inline',
+    // no sourcemaps for prod — ~1.1MB wire of debug maps for zero runtime
+    // benefit at 300KB/s connections; keep inline maps for dev/watch builds
+    sourcemap: mode !== 'production' ? 'inline' : false,
 
     minify: mode === 'production' ? 'oxc' : false,
     terserOptions:
