@@ -1,5 +1,4 @@
 import { adjust_iframe_height_url, adjust_viewport_url, predefine_url } from '@/iframe/script_url';
-import { importmapTag } from '@/core/module_cache/registry';
 import third_party from '@/iframe/third_party_message.html?raw';
 import { getCharAvatarPath, getUserAvatarPath } from '@/util/tavern';
 
@@ -84,7 +83,6 @@ export function createSrcContent(content: string, use_blob_url: boolean) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-${importmapTag()}
 ${use_blob_url ? `<base href="${window.location.origin}"/>` : ''}
 <style>
 *,*::before,*::after{box-sizing:border-box;}

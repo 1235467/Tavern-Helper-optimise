@@ -204,12 +204,6 @@ import {
   updateWorldbookWith,
 } from '@/function/worldbook';
 import { audioEnable, audioImport, audioMode, audioPlay, audioSelect } from '@/slash_command/audio';
-import {
-  moduleCacheClear,
-  moduleCacheEntries,
-  moduleCacheRefresh,
-  prefetchModule,
-} from '@/core/module_cache';
 import { useIframeLogsStore } from '@/store/iframe_logs';
 import { writeExtensionField } from '@/util/tavern';
 
@@ -375,13 +369,7 @@ function getTavernHelper() {
     setChatLorebook,
     getOrCreateChatLorebook,
 
-    // module_cache (tavern-helper-ng — additive)
-    prefetchModule: (url: string) => prefetchModule(url),
-    moduleCache: {
-      list: () => moduleCacheEntries(),
-      refresh: (url: string) => moduleCacheRefresh(url),
-      clear: () => moduleCacheClear(),
-    },
+
 
     // preset
     isPresetNormalPrompt,

@@ -74,7 +74,6 @@ export const GlobalSettings = z
         env_source: z.enum(['local', 'cdn']).default('local').catch('local'),
         engine: z.enum(['ng', 'legacy']).default('ng').catch('ng'),
         io_gate: z.boolean().default(true).catch(true),
-        module_cache: z.boolean().default(true).catch(true),
       })
       .prefault({}),
     script: z

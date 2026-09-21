@@ -99,21 +99,6 @@
             />
           </template>
         </Item>
-        <Divider />
-        <Item type="plain">
-          <template #title>{{ t`模块缓存` }}</template>
-          <template #description>
-            {{ t`把脚本/前端 import 的 CDN 模块缓存到本地，大幅减少网络瀑布。已缓存的模块可从管理页刷新/清除` }}
-          </template>
-          <template #content>
-            <div class="flex items-center gap-1">
-              <Toggle id="TH-render-module-cache" v-model="module_cache" />
-              <button class="menu_button interactable !px-1.5" :title="t`管理模块缓存`" @click="openModuleCache">
-                <i class="fa-solid fa-database" />
-              </button>
-            </div>
-          </template>
-        </Item>
       </div>
     </Item>
   </div>
@@ -125,14 +110,11 @@
   </template>
 
   <Streaming v-if="enable_allow_streaming" :enable-allow-streaming="enable_allow_streaming" />
-
-  <ModuleCache v-model="moduleCacheVisible" />
 </template>
 
 <script setup lang="ts">
 import Popup from '@/panel/component/Popup.vue';
 import Iframe from '@/panel/render/Iframe.vue';
-import ModuleCache from '@/panel/render/ModuleCache.vue';
 import Streaming from '@/panel/render/Streaming.vue';
 import { useMacroLike } from '@/panel/render/macro_like';
 import { useOptimizeHljs } from '@/panel/render/optimize_hljs';
@@ -144,14 +126,9 @@ import { event_types } from '@sillytavern/script';
 import { useModal } from 'vue-final-modal';
 
 const global_settings = useGlobalSettingsStore();
-const { enabled, collapse_code_block, allow_streaming, use_blob_url, use_cleanup_protector, optimize_hljs, depth, depth_ignore_hidden, module_cache, io_gate } =
+const { enabled, collapse_code_block, allow_streaming, use_blob_url, use_cleanup_protector, optimize_hljs, depth, depth_ignore_hidden, io_gate } =
   toRefs(global_settings.settings.render);
 const { enabled: macro_enabled } = toRefs(global_settings.settings.macro);
-
-const moduleCacheVisible = ref(false);
-function openModuleCache() {
-  moduleCacheVisible.value = true;
-}
 
 const collapse_code_block_options = [
   {

@@ -105,15 +105,13 @@ reconciliation, th-env bundle, ABI checklist).
   upstream bug: `use_collapse_code_block.ts` watches a non-reactive array.
 - [ ] **streaming e2e test** — enable 允许流式渲染 + real streamed generation
   in browser; verify sealed-chunk reconcile + live mode.
-- [x] **module CDN cache** ✅ `src/core/module_cache/` — recursive crawler
-  fetches CDN imports → rewrites nested specifiers to absolute URLs →
-  IndexedDB → per-srcdoc `<script type="importmap">` mapping absolute URL →
-  session blob URL. `render.module_cache` (default on), mount gate
-  (~1.5s dedup'd crawl) in store/iframe_runtimes/script.ts, panel
-  ModuleCache.vue manager, `prefetchModule`/`moduleCache` additive API.
-  Progressive: any miss/failure falls back to CDN as today. Also wired
-  panel/script/iframe.ts to `createScriptSrcdoc` (was dead code — kills
-  the 3-CDN env fetches per script iframe). 18 vitest cases green.
+- [x] **module CDN cache** — *implemented then REMOVED on user data:*
+  reverting to pre-cache build was measurably smoother even after fixing
+  the mount-gate remount storm (watch fired on every script.data write →
+  remount-all-scripts per variable write) and memoizing importmapTag.
+  Reverted entirely — CDN module fetches stay as upstream. The
+  `createScriptSrcdoc` delegation (bundled th-env vs 3 CDN env fetches)
+  stays — it's an env win independent of the cache.
 - [x] **delta-gated auto-height** ✅ `adjust_iframe_height.js` — only writes
   `frameElement.style.height` when |Δ| ≥ 4px (was: every ResizeObserver fire
   → parent-doc reflow per frame for animated frontends — the Rhea profile's
