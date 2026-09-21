@@ -43,11 +43,14 @@ const js = JS_PARTS.map(([pkg, file]) => `/* ===== ${pkg}/${file} ===== */\n` + 
 fs.writeFileSync(out('th-env.js'), js);
 console.log(`lib/th-env.js  ${(js.length / 1024).toFixed(0)}KB`);
 
-const css = CSS_PARTS.map(([pkg, file]) => `/* ===== ${pkg}/${file} ===== */\n` + need(nm(pkg, file))).join('\n');
+const css = CSS_PARTS.map(([pkg, file]) => `/* ===== ${pkg}/${file} ===== */\n` + need(nm(pkg, file))).join('\n')
+  // th-env.css is served from <ext>/lib/, so FA's `../webfonts/` would escape
+  // to <ext>/webfonts/ — rewrite to ./webfonts/ to stay inside lib/
+  .replaceAll('../webfonts/', './webfonts/');
 fs.writeFileSync(out('th-env.css'), css);
 console.log(`lib/th-env.css  ${(css.length / 1024).toFixed(0)}KB`);
 
-// FontAwesome css resolves ../webfonts/* relative to the css file → lib/webfonts
+// FontAwesome fonts → lib/webfonts (matches the rewritten ./webfonts/ urls)
 const webfonts_src = nm('@fortawesome/fontawesome-free', 'webfonts');
 if (fs.existsSync(webfonts_src)) {
   fs.mkdirSync(out('webfonts'), { recursive: true });
@@ -55,4 +58,14 @@ if (fs.existsSync(webfonts_src)) {
     fs.copyFileSync(path.join(webfonts_src, f), out('webfonts', f));
   }
   console.log(`lib/webfonts/  ${fs.readdirSync(webfonts_src).length} files`);
+}
+
+// jquery-ui theme css references images/*.png → lib/images
+const jui_images_src = nm('jquery-ui-dist', 'images');
+if (fs.existsSync(jui_images_src)) {
+  fs.mkdirSync(out('images'), { recursive: true });
+  for (const f of fs.readdirSync(jui_images_src)) {
+    fs.copyFileSync(path.join(jui_images_src, f), out('images', f));
+  }
+  console.log(`lib/images/  ${fs.readdirSync(jui_images_src).length} files`);
 }
