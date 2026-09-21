@@ -51,6 +51,16 @@
         </Item>
         <Divider />
         <Item type="plain">
+          <template #title>{{ t`视口外延迟渲染` }}</template>
+          <template #description>
+            {{ t`屏幕外的楼层不立即渲染 iframe（滚动接近时才挂载），减少加载时的脚本执行开销；关闭后回到启动即渲染` }}
+          </template>
+          <template #content>
+            <Toggle id="TH-render-io-gate" v-model="io_gate" />
+          </template>
+        </Item>
+        <Divider />
+        <Item type="plain">
           <template #title>{{ t`取消前端代码高亮` }}</template>
           <template #description>
             {{ t`避免酒馆对可渲染成前端界面的代码块进行语法高亮，从而提升渲染性能` }}
@@ -134,7 +144,7 @@ import { event_types } from '@sillytavern/script';
 import { useModal } from 'vue-final-modal';
 
 const global_settings = useGlobalSettingsStore();
-const { enabled, collapse_code_block, allow_streaming, use_blob_url, use_cleanup_protector, optimize_hljs, depth, depth_ignore_hidden, module_cache } =
+const { enabled, collapse_code_block, allow_streaming, use_blob_url, use_cleanup_protector, optimize_hljs, depth, depth_ignore_hidden, module_cache, io_gate } =
   toRefs(global_settings.settings.render);
 const { enabled: macro_enabled } = toRefs(global_settings.settings.macro);
 
