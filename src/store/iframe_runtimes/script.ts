@@ -36,11 +36,19 @@ export const useScriptIframeRuntimesStore = defineStore('script_iframe_runtimes'
 
   // module-cache mount gate: kick the dedup'd crawl for all CDN URLs in
   // enabled scripts, and defer iframe mounting until the ~1.5s gate
-  // resolves — one crawl vs N per-iframe waterfalls
+  // resolves — one crawl vs N per-iframe waterfalls.
+  // WATCH KEY: `id:content.length` is stable across script.data/variable
+  // writes — a naive content-array watch would remount ALL script iframes
+  // on every variable write (MagVarUpdate writes stat_data constantly →
+  // per-write remount storm = the freezing regression)
   const module_gate_ready = ref(!env().module_cache);
   watch(
-    () => enabled_scripts_with_source.value.map(i => i.script.content),
-    contents => {
+    () =>
+      enabled_scripts_with_source.value
+        .map(i => `${i.script.id}:${i.script.content.length}`)
+        .join('|'),
+    () => {
+      const contents = enabled_scripts_with_source.value.map(i => i.script.content);
       const urls = _(contents).flatMap(c => extractCdnImportUrls(c)).uniq().value();
       module_gate_ready.value = !env().module_cache || urls.length === 0;
       if (!module_gate_ready.value) {
