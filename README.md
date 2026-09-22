@@ -14,27 +14,29 @@ optimized for **Firefox desktop and Firefox Android**.
 
 | Area | Original | tavern-helper-ng |
 |---|---|---|
-| Streaming render | full `innerHTML` snapshot + jQuery re-parse + **every iframe reloads its ~10 scripts per token** | WASM tokenizer partitions chunks once per frame; **sealed chunks are frozen** — only the trailing unsealed chunk updates (opt-in `live` mode: postMessage deltas, zero reloads) |
+| Streaming render | full `innerHTML` snapshot + jQuery re-parse + **every iframe reloads its ~10 scripts per token** | one dependency-free tokenizer partitions chunks once per frame; **sealed chunks are frozen** — only the trailing unsealed chunk updates (opt-in `live` mode: postMessage deltas, zero reloads) |
 | Per-iframe libraries | ~7 jsdelivr CDN fetches + CDN `log.js` | one local `lib/th-env.js` + `th-env.css` (`env_source:'cdn'` escape hatch) |
-| vh rewriting | 7 regex passes per srcdoc | one fused WASM pass (`rewrite_srcdoc`) |
+| vh rewriting | 7 regex passes per srcdoc | one fused pass (verbatim port of the original regexes) |
 | Render bookkeeping | O(chat) lodash chains + Vue reactivity per event | `Map`/`Set` registry, Vue-free hot path |
 | Log capture | unbounded reactive arrays; full flatten+sort per entry | 500-entry ring buffer per iframe + throttled version tick |
 | Settings saves | deep-watch → klona whole settings per leaf write | *(planned: dirty tracking — see IMPLEMENTATION.md)* |
-| Compute | all JS, main thread | `th-core` WASM (~97KB, zero-dependency raw ABI) + verbatim JS fallbacks |
+| Compute | all JS, main thread | `th-core` WASM for `text_content` (entity decoding) only — see below |
 
 ## Architecture
 
 ```
 crates/th-core/        Rust → wasm32-unknown-unknown, no deps, raw extern-"C" ABI
-src/wasm/              th_core.mjs (loader+glue), loader.ts (engine dispatch),
-                       js_fallback/ (pure-JS mirrors = fallback + parity oracle)
+                       (only `text_content` is exported — see "WASM scope")
+src/wasm/              th_core.mjs (loader+glue), loader.ts (engine dispatch)
 src/core/              Vue-free hot path: render_engine, runtime_registry,
                        stream_session, iframe_controller, message_scanner,
-                       srcdoc, env (settings bridge)
+                       srcdoc, env (settings bridge), plus the *.mjs text
+                       primitives — partition, entities, macro_scan,
+                       is_frontend, fence, vh_rewrite
 src/iframe/            bootstrap scripts — VERBATIM ABI (predefine.js et al.)
 src/function|store|    the ~150-function TavernHelper API layer (ported verbatim)
   type|util|panel|
-tests/contract/        node:test suites — wasm ↔ fallback ↔ fixture parity
+tests/contract/        node:test suites — text_content parity + ABI fixtures
 ```
 
 Key design rules:
@@ -44,9 +46,21 @@ Key design rules:
   naming schemes (`TH-message--`, `TH-script--`), event strings and DOM
   markers are identical.
 - **WASM never runs inside iframes** — bootstraps stay pure JS.
-- **Every WASM function has a pure-JS fallback** that is itself the original
-  algorithm; `tests/contract/parity.test.mjs` proves equivalence on a fixture
-  corpus. If WASM fails to load (CSP, old browsers), behavior is unchanged.
+- **WASM scope — only `textContent` uses it, and that is measured, not
+  assumed.** Every wasm call pays a full UTF-8 re-encode + byte→UTF-16 index
+  map + memory copy in the JS glue layer. On real inputs (Node 23,
+  44KB–875KB) that marshalling outweighs the compute saved everywhere except
+  entity decoding:
+  `partitionMessageHtml` JS wins 3.7–4.5x, `scanBuiltinMacros` 2–5x,
+  `rewriteSrcdoc` 22–29x, `isFrontend` up to 277x (it short-circuits on the
+  string head while wasm must marshal the whole input), `findFrontendBlocks`
+  ~2x — versus `textContent`, the one workload heavy enough to beat the
+  marshalling (wasm ~2–3x). So the engine surface binds the `src/core/*.mjs`
+  ports directly for everything else — byte-faithful ports of the original
+  code paths, and identical semantics enforced by
+  `tests/contract/parity.test.mjs`. If WASM fails to load (CSP, old
+  browsers), `textContent` transparently falls back to the JS port and
+  behavior is unchanged.
 
 ## Build
 
@@ -71,7 +85,7 @@ don't run side-by-side with the original extension.
 
 ```bash
 pnpm run test:rust        # cargo unit tests (native)
-pnpm run test:contract    # node:test — wasm vs fallback vs fixtures
+pnpm run test:contract    # node:test — wasm ↔ JS parity (text_content) + ABI fixtures
 ```
 
 ## Settings additions

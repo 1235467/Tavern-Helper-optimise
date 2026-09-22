@@ -1,6 +1,5 @@
 // Verbatim port of replaceVhInContent (src/panel/render/iframe.ts:5-75).
-// This IS the golden implementation — the WASM rewrite_srcdoc must match it
-// byte-for-byte on the fixture corpus.
+// This IS the implementation used by the engine surface.
 
 function replaceVhInContent(content) {
   const has_css_min_vh = /min-height\s*:\s*[^;{}]*\d+(?:\.\d+)?vh/gi.test(content);

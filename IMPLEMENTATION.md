@@ -11,31 +11,31 @@ reconciliation, th-env bundle, ABI checklist).
     strings, DOM markers, `TavernHelper` surface, persistence keys, macro
     syntax — the `tests/contract/` suite encodes the string-level ones.
   - `tests/contract/wasm_smoke.test.mjs` + `parity.test.mjs`: real
-    `th_core.wasm` ↔ pure-JS fallbacks ↔ hand-derived expected semantics.
-    **15 tests, all green** (node:test, no npm deps needed).
-- **WASM core** ✅ `crates/th-core` — zero-dep, raw extern-"C" ABI, ~97KB:
-  - `is_frontend` — `html>`|`<head>`|`<body` substring check
-  - `rewrite_srcdoc` — fused port of `replaceVhInContent` (all 4 passes +
-    strict early-out, bug-for-bug: no `\b` before digits in convert, `\b`
-    required in pass-3/4 tests, unbounded `style`/`min-height`/`setProperty`
-    keywords, JS number formatting verified vs node)
-  - `partition_message_html` — preprocess (mes_text→TH-streaming + collapse
-    strip) + top-level tokenizer + classification + normal-chunk merge +
-    **sealed flags** (the new bit the original lacked); embeds preprocessed
-    text so offsets are consistent
-  - `find_frontend_blocks` — `<pre>` spans + `ordinal` (pairs with
-    `querySelectorAll('pre')`) + sealed flag
-  - `text_content` — `$(el).text()` equivalent (tag strip + entity decode:
-    numeric dec/hex ±semicolon, legacy no-semi names, U+FFFD rules)
-  - `unwrap_fence` — script ```` ``` ````-fence port
-  - `scan_builtin_macros` — `{{get_/format_*_variable::}}` spans with
-    line-anchored greedy-prefix format semantics; scope emitted verbatim
-    (case-preserved, e.g. `{{GET_CHAT_…}}` → `'CHAT'`)
-  - JS glue `src/wasm/th_core.mjs`: shared input/result buffers, UTF-8 byte →
-    UTF-16 index map so all public offsets are JS string indices.
-  - **Rust tests: 11 pass** (`cargo test`).
-- **JS fallbacks** ✅ `src/wasm/js_fallback/` — pure-JS mirrors (also DOM-free
-  where the original needed jQuery: tokenizer reimplemented in JS).
+    `th_core.wasm` ↔ pure-JS port ↔ hand-derived expected semantics
+    (`text_content` only — the other wasm exports were retired, see below).
+- **WASM core** ✅ `crates/th-core` — zero-dep, raw extern-"C" ABI:
+  - **scope retired to `text_content` only** (`$(el).text()` equivalent —
+    tag strip + entity decode: numeric dec/hex ±semicolon, legacy no-semi
+    names, U+FFFD rules). Measured on real inputs (Node 23, 44KB–875KB):
+    every wasm call pays a full UTF-8 re-encode + byte→UTF-16 index map +
+    memory copy in the JS glue, which outweighs the compute saved on the
+    scan/partition workloads — the pure-JS ports are *faster* there
+    (`partitionMessageHtml` 3.7–4.5x, `scanBuiltinMacros` 2–5x,
+    `rewriteSrcdoc` 22–29x, `isFrontend` up to 277x — it short-circuits on
+    the string head while wasm must marshal the whole input). Entity
+    decoding is the one workload heavy enough to beat marshalling
+    (~2–3x wasm win), so it keeps the wasm-or-JS dispatch.
+  - Removed exports + modules: `is_frontend`, `rewrite_srcdoc`,
+    `partition_message_html`, `find_frontend_blocks`, `unwrap_fence`,
+    `scan_builtin_macros` (tokenizer/partition/frontend_scan/macro_scan/
+    vh_rewrite/fence.rs deleted).
+  - JS glue `src/wasm/th_core.mjs`: shared input/result buffers.
+- **Text primitives** ✅ `src/core/*.mjs` — pure-JS, DOM-free
+  implementations (tokenizer + partition + frontend scan + entity decode +
+  macro scan + vh rewrite + fence unwrap, byte-faithful ports of the
+  original code paths). Formerly `src/wasm/js_fallback/` — they are the
+  engine's implementation now, not a fallback; only `entities.mjs` still
+  shadows a wasm export.
 - **Core engine** ✅ `src/core/` — Vue-free:
   - `runtime_registry.ts` — Map/Set audit (replaces O(chat) `_.range` +
     O(n·m) `_.includes`), verbatim `calcToRender` semantics
@@ -62,11 +62,16 @@ reconciliation, th-env bundle, ABI checklist).
 - **jsoneditor lazy-load** ✅ `await import('vanilla-jsoneditor')` in onMounted
   (1.2MB off startup path); local `Mode`/`ValidationSeverity` consts
 - **Panel lazy mount** ✅ `defineAsyncComponent(() => import('@/Panel.vue'))`
-  → separate rollup chunk (Panel + its deps load on first open, off cold path)
+  — kept as a render boundary, but `inlineDynamicImports` now inlines it:
+  the deferred-chunk waterfall cost N serial RTTs on high-latency links
+  (measured ~4 layers ≈ 3s at ~550ms RTT), so the bundle trades bytes for
+  round-trips
 - **verified build** ✅ `pnpm run build:env` → `lib/th-env.js` 470KB /
-  `th-env.css` 86KB; `vite build` → `dist/index.js` **303KB (80KB gzip)** vs
-  upstream 1.1MB + 1.2MB eager jsoneditor; `dist/th_core.wasm` 97KB;
-  Panel/plugins/vue-tippy all deferred chunks. 20 contract + 2 vitest tests
+  `th-env.css` 86KB; `vite build` → `dist/index.js` **~1.19MB single file**
+  (Panel/plugins/vue-tippy/srcdoc inlined via `inlineDynamicImports` —
+  external `@sillytavern/*`/`vanilla-jsoneditor` dynamic imports stay
+  external) + `dist/index.css` + `dist/th_core.wasm`;
+  vs upstream 1.1MB + 1.2MB eager jsoneditor. 7 contract + 2 vitest tests
   green on node 23.
 - **verified in real SillyTavern** ✅ repo symlinked into
   `SillyTavern/public/scripts/extensions/third-party/JS-Slash-Runner`
@@ -96,8 +101,9 @@ reconciliation, th-env bundle, ABI checklist).
   OAI_PRESET_EXPORT_READY scrub, so a late flush can't overwrite scrubbed
   data. Preset savers still get separate klonas (memory/file mustn't share
   the object — same as original two klonas).
-- [x] **macro_like render-path** ✅ `demacroOnRender` rewritten: WASM
-  `scan_builtin_macros` prescan + node-targeted text-node replacement — only
+- [x] **macro_like render-path** ✅ `demacroOnRender` rewritten:
+  `engine.scanBuiltinMacros` (JS port — the wasm export was retired, see
+  WASM core note) prescan + node-targeted text-node replacement — only
   touched `<pre>` iframes drop+remount instead of every iframe in the message.
   Custom `registerMacroLike` regexes fall back to the verbatim wholesale path;
   pathological format-in-prefix nesting falls back per-node. Upstream latent
@@ -116,9 +122,10 @@ reconciliation, th-env bundle, ABI checklist).
   `frameElement.style.height` when |Δ| ≥ 4px (was: every ResizeObserver fire
   → parent-doc reflow per frame for animated frontends — the Rhea profile's
   59k-style-flush amplifier).
-- [x] **`demacroOnPrompt` WASM prescan** — *kept as regex application:
+- [x] **`demacroOnPrompt` prescan** — *kept as regex application:
   prompt-side works on strings with no DOM churn, so the win is marginal;
-  demacroOnPrompt stays verbatim. Noted deliberately.*
+  demacroOnPrompt stays verbatim. (Moot anyway — `scan_builtin_macros` no
+  longer has a wasm export.)*
 - [x] **IntersectionObserver render gating** ✅ `render.io_gate` (default
   true): below-fold `.TH-render` wrappers register on a shared
   IntersectionObserver (300px margin); the iframe + its ~10-script realm eval
@@ -141,8 +148,9 @@ reconciliation, th-env bundle, ABI checklist).
   stream (needs the streaming e2e first).
 - [ ] **full vue-tsc pass** — scoped check of core/wasm is clean
   (`tests/typecheck/`); a full run needs an ST checkout for `@sillytavern/*`.
-- [ ] **dist/ shipping model** — decide whether dist is committed (upstream
-  model) or CI-built.
+- [x] **dist/ shipping model** ✅ CI-built: `.github/workflows/bundle.yaml`
+  rebuilds + commits dist/ on every push to main (paths-ignore on dist/**
+  prevents self-trigger loops).
 - [x] **boot guard** ✅ index.ts warns via console+toastr when another
   `TavernHelper` exists; our instance stamps `__th_ng=true`.
 
@@ -164,8 +172,8 @@ reconciliation, th-env bundle, ABI checklist).
   gh/jsdelivr URL).
 - `message_iframe_render_ended` fires once per seal rather than per token —
   the event + payload are contractual, the rate is not (tracked in changelog).
-- WASM↔JS scope divergence fixed: `{{GET_CHAT_…}}` emits verbatim `'CHAT'`
-  (was canonicalized `'chat'` — the original regex captures are /i).
-- Known micro-divergence in `rewrite_srcdoc`: `parsed/100` for |v|<1e-6 or
-  ≥1e21 formats exponentially in JS (`1e-7`) but Rust prints decimal — no
-  realistic `vh` value hits this.
+- Historical (pre-retirement): the wasm scan/partition exports were removed
+  after benchmarking showed glue marshalling dominates their workloads —
+  the former WASM↔JS divergence notes (`{{GET_CHAT_…}}` verbatim scope,
+  `rewrite_srcdoc` exponential-formatting edge) are obsolete now that the
+  JS ports are authoritative.

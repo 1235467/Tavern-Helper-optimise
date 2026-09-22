@@ -1,7 +1,7 @@
-// Pure-JS mirror of crates/th-core/src/{tokenizer,partition,frontend_scan}.rs.
-// This is BOTH the no-WASM fallback for the streaming partitioner AND the
-// parity oracle — it must produce identical results to the wasm module.
-// Works without a DOM (no jQuery/innerHTML).
+// The streaming partitioner implementation — partitions .mes_text innerHTML
+// into render chunks (normal/details/iframe/nested_iframe). Pure JS, works
+// without a DOM (no jQuery/innerHTML). Formerly mirrored the now-deleted
+// crates/th-core tokenizer/partition/frontend_scan wasm modules.
 
 import { isFrontend } from './is_frontend.mjs';
 import { textContent } from './entities.mjs';
@@ -297,10 +297,8 @@ export function partitionMessageHtml(html) {
 }
 
 /**
- * Fallback for wasm find_frontend_blocks:
  * returns [{outerStart,outerEnd,innerStart,innerEnd, code()}] — offsets in
- * UTF-16 string units here (JS fallback operates on strings, unlike the wasm
- * byte table; callers that slice strings should use this fallback's offsets).
+ * UTF-16 string units (callers that slice strings use these offsets).
  */
 export function findFrontendBlocks(html) {
   const { elements } = tokenize(html);

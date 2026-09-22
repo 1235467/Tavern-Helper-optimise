@@ -1,19 +1,19 @@
-// WASM dispatch layer — every call site goes through `engine.*`, which prefers
-// the wasm module and falls back to the pure-JS mirrors when it is missing.
-// The fallbacks are byte-faithful ports of the ORIGINAL implementations, so
-// WASM failure can never change behavior.
+// WASM dispatch layer — every call site goes through `engine.*`.
+// Only `textContent` dispatches to wasm (the sole measured win); the rest bind
+// the src/core/*.mjs implementations directly — byte-faithful ports of the
+// ORIGINAL code paths, so wasm failure can never change behavior.
 
 import { loadThCore, type ThCore } from './th_core.mjs';
-import { isFrontend as jsIsFrontend } from './js_fallback/is_frontend.mjs';
-import { rewriteSrcdoc as jsRewriteSrcdoc } from './js_fallback/vh_rewrite.mjs';
-import { unwrapFence as jsUnwrapFence } from './js_fallback/fence.mjs';
-import { textContent as jsTextContent } from './js_fallback/entities.mjs';
+import { isFrontend } from '../core/is_frontend.mjs';
+import { rewriteSrcdoc } from '../core/vh_rewrite.mjs';
+import { unwrapFence } from '../core/fence.mjs';
+import { textContent as jsTextContent } from '../core/entities.mjs';
 import {
-  findFrontendBlocks as jsFindFrontendBlocks,
-  partitionMessageHtml as jsPartitionMessageHtml,
+  findFrontendBlocks,
+  partitionMessageHtml,
   preprocessStreamHtml,
-} from './js_fallback/partition.mjs';
-import { scanBuiltinMacros as jsScanBuiltinMacros } from './js_fallback/macro_scan.mjs';
+} from '../core/partition.mjs';
+import { scanBuiltinMacros } from '../core/macro_scan.mjs';
 
 export interface FrontendBlock {
   outerStart: number;
@@ -59,10 +59,6 @@ export function initWasm(url?: string | URL): Promise<ThCore | null> {
   return wasm_ready;
 }
 
-export function getWasm(): ThCore | null {
-  return wasm_instance;
-}
-
 /** Resolves once instantiation settles (never rejects). */
 export const wasmReady: Promise<ThCore | null> = (async () => {
   wasm_instance = await initWasm();
@@ -70,27 +66,27 @@ export const wasmReady: Promise<ThCore | null> = (async () => {
 })();
 
 /**
- * The engine surface used by core/. Each field prefers the wasm export and
- * falls back to the JS implementation — identical signatures, identical
- * semantics (enforced by tests/contract/parity.test.mjs).
+ * The engine surface used by core/. Measured: every wasm call pays a full
+ * UTF-8 re-encode + byte→UTF-16 index map + memory copy in the glue layer,
+ * which outweighs the compute saved on these scan/partition workloads — so
+ * they bind the src/core/*.mjs ports directly. `textContent` (entity
+ * decoding) is the one measured wasm win and keeps the wasm-or-JS dispatch.
+ * Signatures/semantics identical either way (tests/contract/parity.test.mjs).
  */
 export const engine = {
-  isFrontend: (s: string): boolean => wasm_instance?.isFrontend(s) ?? jsIsFrontend(s),
+  isFrontend,
 
-  rewriteSrcdoc: (s: string): string => wasm_instance?.rewriteSrcdoc(s) ?? jsRewriteSrcdoc(s),
+  rewriteSrcdoc,
 
   textContent: (s: string): string => wasm_instance?.textContent(s) ?? jsTextContent(s),
 
-  unwrapFence: (s: string): string => wasm_instance?.unwrapFence(s) ?? jsUnwrapFence(s),
+  unwrapFence,
 
   preprocessStreamHtml,
 
-  partitionMessageHtml: (s: string): { html: string; chunks: PartitionChunk[] } =>
-    wasm_instance?.partitionMessageHtml(s) ?? jsPartitionMessageHtml(s),
+  partitionMessageHtml,
 
-  findFrontendBlocks: (s: string): FrontendBlock[] =>
-    wasm_instance?.findFrontendBlocks(s) ?? jsFindFrontendBlocks(s),
+  findFrontendBlocks,
 
-  scanBuiltinMacros: (s: string): MacroRecord[] =>
-    (wasm_instance?.scanBuiltinMacros(s) ?? jsScanBuiltinMacros(s)) as MacroRecord[],
+  scanBuiltinMacros: scanBuiltinMacros as (s: string) => MacroRecord[],
 };

@@ -16,7 +16,7 @@ import {
   unmountFromRenderDiv,
 } from '@/core/iframe_controller';
 import { ensureRenderWrapper } from '@/core/message_scanner';
-import { engine, getWasm, type PartitionChunk } from '@/wasm/loader';
+import { engine, type PartitionChunk } from '@/wasm/loader';
 import { chat, event_types, eventSource } from '@sillytavern/script';
 
 const KIND_NORMAL = 0;
@@ -227,10 +227,7 @@ export class StreamSession {
     }
     host.innerHTML = chunk.html;
     const pres = Array.from(host.querySelectorAll('pre'));
-    const wasm = getWasm();
-    const blocks = wasm
-      ? wasm.findFrontendBlocks(chunk.html)
-      : engine.findFrontendBlocks(chunk.html);
+    const blocks = engine.findFrontendBlocks(chunk.html);
     const seen = new Set<number>();
     blocks.forEach((b, sub) => {
       const pre = pres[b.ordinal];

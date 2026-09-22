@@ -80,7 +80,7 @@ function legacyDemacroOnRender($mes: JQuery<HTMLDivElement>) {
  * Node-targeted builtin-macro replacement — replaces `{{get_*_variable}}` /
  * `{{format_*_variable}}` inside individual text nodes instead of rewriting
  * the whole .mes_text innerHTML (which destroys every rendered iframe).
- * Driven by engine.scanBuiltinMacros spans (WASM or JS fallback); replacement
+ * Driven by engine.scanBuiltinMacros spans (JS port; see wasm/loader.ts); replacement
  * still goes through the original macros[0]/macros[1] `replace` fns so
  * semantics are bit-identical.
  */

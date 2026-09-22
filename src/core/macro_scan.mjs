@@ -1,5 +1,5 @@
-// Fallback for wasm scan_builtin_macros — drives the ORIGINAL regexes and
-// emits the same record shape (UTF-16 string offsets here, not bytes).
+// Builtin macro-like scan — drives the ORIGINAL regexes and emits records
+// with UTF-16 string offsets.
 //
 // get:    /\{\{get_(message|chat|character|preset|global)_variable::(.*?)\}\}/gi
 // format: /^(.*)\{\{format_(...)_variable::(.*?)\}\}/gim  (line-anchored,

@@ -1,1 +1,0 @@
-import{i as e}from"./index.es.3rQlyk4A.chunk.js";import{n as t}from"./vue-tippy.esm-browser.LKAsin1x.chunk.js";function n(n){n.use(e()),n.use(t)}export{n as default};

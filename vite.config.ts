@@ -139,8 +139,10 @@ export default defineConfig(({ mode }) => ({
       output: {
         format: 'es',
         entryFileNames: '[name].js',
-        // Panel.vue is dynamically imported → its chunk stays separate
-        chunkFileNames: '[name].[hash].chunk.js',
+        // high-latency deployment: each emitted chunk costs a serial RTT in the
+        // browser's ESM waterfall — collapse dynamic imports into the entry
+        // (external dynamic imports like @sillytavern/* stay external)
+        inlineDynamicImports: true,
         assetFileNames: '[name].[ext]',
         preserveModules: false,
       },

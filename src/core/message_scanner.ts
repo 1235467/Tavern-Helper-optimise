@@ -1,13 +1,13 @@
-// Message scanner — finds frontend <pre> elements inside a .mes div.
-// WASM path: one innerHTML serialize → find_frontend_blocks → ordinal pairing
-// with querySelectorAll('pre'). DOM fallback: per-pre textContent + isFrontend
-// (same semantics as the original jQuery filter — isFrontend($(pre).text())).
+// Message scanner — finds frontend <pre> elements inside a .mes div:
+// one innerHTML serialize → engine.findFrontendBlocks → ordinal pairing with
+// querySelectorAll('pre') (same semantics as the original jQuery filter —
+// isFrontend($(pre).text())).
 //
 // After locating them, each <pre> is wrapped in <div class="TH-render"> —
 // exactly what render$mes does in src/store/iframe_runtimes/message.ts:22-29.
 
 import { env } from '@/core/env';
-import { engine, getWasm } from '@/wasm/loader';
+import { engine } from '@/wasm/loader';
 
 /**
  * Wrap `pre` in a div.TH-render (reusing an existing wrapper), returning the
@@ -28,16 +28,12 @@ export function ensureRenderWrapper(pre: HTMLElement): HTMLElement {
 /** frontend <pre> elements inside `mes`, in document order */
 export function findFrontendPres(mes: HTMLElement): HTMLPreElement[] {
   const pres = Array.from(mes.querySelectorAll('pre'));
-  const wasm = getWasm();
-  if (wasm) {
-    // innerHTML order == document order for the <pre> sequence — the ordinal
-    // field pairs a wasm-found block back to its DOM element.
-    const blocks = wasm.findFrontendBlocks(mes.innerHTML);
-    return blocks
-      .map(b => pres[b.ordinal])
-      .filter((el): el is HTMLPreElement => el !== undefined);
-  }
-  return pres.filter(pre => engine.isFrontend(pre.textContent ?? ''));
+  // innerHTML order == document order for the <pre> sequence — the ordinal
+  // field pairs a scanned block back to its DOM element.
+  return engine
+    .findFrontendBlocks(mes.innerHTML)
+    .map(b => pres[b.ordinal])
+    .filter((el): el is HTMLPreElement => el !== undefined);
 }
 
 /**

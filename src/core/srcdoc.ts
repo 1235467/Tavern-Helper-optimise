@@ -5,7 +5,7 @@
 //     dir; 'cdn' reproduces the original third_party_*.html byte-for-byte.
 //  2. log.js is bundled as a blob URL by default (was a CDN fetch per iframe).
 // The `--TH-viewport-height` rewrite goes through `engine.rewriteSrcdoc`
-// (WASM or the verbatim regex fallback).
+// (the verbatim regex port in core/vh_rewrite.mjs).
 
 import {
   adjust_iframe_height_url,
