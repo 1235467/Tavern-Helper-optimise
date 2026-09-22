@@ -4,7 +4,6 @@
       <div class="flex flex-col items-center justify-center gap-0.25">
         <span class="inline-flex gap-0.5 th-text-lg"><span class="font-bold">Tavern</span> Helper</span>
         <span>{{ t`Ver ${current_version}` }}</span>
-        <Button class="w-auto! whitespace-nowrap" @click="openUpdateModal">{{ button_text }}</Button>
       </div>
       <div class="flex flex-1 flex-col items-center gap-0.5">
         <!-- prettier-ignore-attribute -->
@@ -21,7 +20,7 @@
         >
           <i class="fa-solid fa-book"></i>
         </a>
-        <a href="https://github.com/N0VI028/JS-Slash-Runner" target="_blank">
+        <a href="https://github.com/1235467/Tavern-Helper-optimise" target="_blank">
           <i class="fa-brands fa-github"></i>
         </a>
         <Tippy trigger="click" placement="top" :interactive="true">
@@ -46,22 +45,8 @@
 
 <script setup lang="ts">
 import { getTavernHelperVersion } from '@/function/version';
-import Button from '@/panel/component/Button.vue';
 import Popup from '@/panel/component/Popup.vue';
-import { getLatestVersion, hasUpdate } from '@/panel/info/update';
-import Update from '@/panel/info/Update.vue';
 import { Tippy } from 'vue-tippy';
 
 const current_version = getTavernHelperVersion();
-const button_text = ref(t`查看日志`);
-
-onMounted(async () => {
-  if (await hasUpdate()) {
-    button_text.value = t`最新: ${await getLatestVersion()}`;
-  }
-});
-
-const { open: openUpdateModal } = useModal({
-  component: Update,
-});
 </script>

@@ -81,29 +81,26 @@ useForceRecommendedWorldbookGlobalSettings(
 useMaximizePresetContextLength(toRef(() => store.settings.optimize.maximize_preset_context_length));
 useDisableIncompatibleOption(toRef(() => store.settings.optimize.disable_incompatible_option));
 
-async function getHelp(name: keyof typeof store.settings.optimize): Promise<string> {
-  const response = await fetch(
-    `https://testingcf.jsdelivr.net/gh/N0VI028/JS-Slash-Runner/src/panel/optimize/${name}/${getCurrentLocale().includes('zh') ? 'zh' : 'en'}.md`,
-  );
-  if (!response.ok) {
-    return `获取帮助信息失败: (${response.status}) ${await response.text()}`;
-  }
-  return response.text();
+const help_docs = import.meta.glob('./optimize/*/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
+
+function getHelp(name: keyof typeof store.settings.optimize): string {
+  const locale = getCurrentLocale().includes('zh') ? 'zh' : 'en';
+  return help_docs[`./optimize/${name}/${locale}.md`] ?? '获取帮助信息失败: 未找到说明文档';
 }
 
-async function showHelp(name: keyof typeof store.settings.optimize) {
-  toastr.info(t`正在加载说明...`);
+function showHelp(name: keyof typeof store.settings.optimize) {
   useModal({
     component: Popup,
     attrs: {
       width: 'wide',
       buttons: [{ name: t`关闭` }],
-      onOpened: () => {
-        toastr.clear();
-      },
     },
     slots: {
-      default: `<div class="p-1.5 text-left">${renderMarkdown(await getHelp(name))}</div>`,
+      default: `<div class="p-1.5 text-left">${renderMarkdown(getHelp(name))}</div>`,
     },
   }).open();
 }

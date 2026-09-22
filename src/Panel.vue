@@ -1,7 +1,7 @@
 <template>
   <div class="inline-drawer">
     <div class="inline-drawer-toggle inline-drawer-header">
-      <b>{{ t`酒馆助手` }} <span v-if="has_update" class="th-text-xs font-bold text-red-500">New!</span></b>
+      <b>{{ t`酒馆助手` }}</b>
       <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
     </div>
     <div class="inline-drawer-content TH-custom-tailwind">
@@ -47,34 +47,6 @@
             </div>
           </div>
         </div>
-        <!-- 更新提示条 -->
-        <!-- prettier-ignore-attribute -->
-        <div
-          v-if="show_update_banner"
-          class="
-            flex w-full items-center justify-between rounded-sm border
-            border-[color-mix(in_srgb,var(--SmartThemeQuoteColor)_20%,transparent)] py-0.25 pr-0.5 pl-1 th-text-sm
-            text-(--SmartThemeBodyColor)
-          "
-        >
-          <span>
-            {{ t`发现新版本: ${latest_version}` }}
-          </span>
-          <div class="flex items-center gap-0.5">
-            <!-- prettier-ignore-attribute -->
-            <div
-              class="
-                cursor-pointer rounded-md bg-[color-mix(in_srgb,var(--SmartThemeQuoteColor)_10%,transparent)] px-0.5
-                py-[3px] th-text-xs
-              "
-              @click="openUpdateModal"
-            >
-              {{ t`更新` }}
-            </div>
-            <i class="fa-solid fa-xmark cursor-pointer p-0.25" @click="show_update_banner = false"></i>
-          </div>
-        </div>
-
         <!-- 内容区 -->
         <div class="min-w-0">
           <template v-for="{ key, component } in tabs" :key="key">
@@ -95,8 +67,6 @@ import { useValidatedTab } from '@/panel/composable/use_validated_tab';
 import Developer from '@/panel/Developer.vue';
 import { listenerConnected } from '@/panel/developer/listener';
 import Info from '@/panel/Info.vue';
-import { getLatestVersion, hasUpdate } from '@/panel/info/update';
-import Update from '@/panel/info/Update.vue';
 import Optimize from '@/panel/Optimize.vue';
 import Render from '@/panel/Render.vue';
 import Script from '@/panel/Script.vue';
@@ -126,23 +96,7 @@ const developIconColor = computed(() => {
   return listenerConnected.value ? 'green' : 'rgb(170, 0, 0)';
 });
 
-const has_update = ref(false);
-const show_update_banner = ref(false);
-const latest_version = ref('');
-
-const { open: openUpdateModal } = useModal({
-  component: Update,
-});
-
 const { open: openInfoModal } = useModal({
   component: Info,
-});
-
-onMounted(async () => {
-  has_update.value = await hasUpdate();
-  if (has_update.value) {
-    latest_version.value = await getLatestVersion();
-    show_update_banner.value = true;
-  }
 });
 </script>

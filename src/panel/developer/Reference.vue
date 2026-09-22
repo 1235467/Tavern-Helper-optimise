@@ -17,15 +17,15 @@
           </div>
           <div ref="tavern_helper_types_popup" class="list-group" style="display: none">
             <a
-              target="_blank"
-              href="https://gitlab.com/novi028/JS-Slash-Runner/-/raw/main/dist/@types.zip?ref_type=heads&inline=false"
+              :href="`/scripts/extensions/third-party/${EXTENSION_DIR}/dist/@types.zip`"
+              download
               class="list-group-item"
             >
               {{ t`电脑编写模板用` }}<i class="fa-solid fa-download" />
             </a>
             <a
-              target="_blank"
-              href="https://gitlab.com/novi028/JS-Slash-Runner/-/raw/main/dist/@types.txt?ref_type=heads&inline=false"
+              :href="`/scripts/extensions/third-party/${EXTENSION_DIR}/dist/@types.txt`"
+              download
               class="list-group-item"
             >
               {{ t`手机或 AI 官网用` }}<i class="fa-solid fa-download" />
@@ -54,6 +54,7 @@
 </template>
 
 <script setup lang="ts">
+import { EXTENSION_DIR } from '@/core/srcdoc';
 import { version } from '@/util/tavern';
 import {
   SlashCommandArgument,

@@ -23,6 +23,6 @@ export const predefine_url = createObjectURLFromScript(predefine);
 export const log_url = createObjectURLFromScript(log_js);
 export const stream_applier_url = createObjectURLFromScript(stream_applier);
 
-/** CDN URL kept for env_source='cdn' escape hatch (exact original). */
+/** CDN URL kept for env_source='cdn' escape hatch. */
 export const LOG_CDN_URL =
-  'https://testingcf.jsdelivr.net/gh/N0VI028/JS-Slash-Runner/src/iframe/node_modules/log.js';
+  'https://testingcf.jsdelivr.net/gh/1235467/Tavern-Helper-optimise/src/iframe/node_modules/log.js';

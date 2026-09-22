@@ -1,4 +1,4 @@
-import { adjust_iframe_height_url, adjust_viewport_url, predefine_url } from '@/iframe/script_url';
+import { adjust_iframe_height_url, adjust_viewport_url, log_url, predefine_url } from '@/iframe/script_url';
 import third_party from '@/iframe/third_party_message.html?raw';
 import { getCharAvatarPath, getUserAvatarPath } from '@/util/tavern';
 
@@ -92,7 +92,7 @@ html,body{margin:0!important;padding:0;overflow:hidden!important;max-width:100%!
 </style>
 ${third_party}
 <script src="${predefine_url}"></script>
-<script src="https://testingcf.jsdelivr.net/gh/N0VI028/JS-Slash-Runner/src/iframe/node_modules/log.js"></script>
+<script src="${log_url}"></script>
 <script src="${adjust_viewport_url}"></script>
 <script src="${adjust_iframe_height_url}"></script>
 </head>
