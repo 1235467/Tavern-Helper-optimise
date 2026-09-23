@@ -1,4 +1,8 @@
 import js from '@eslint/js';
+import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
+import { createNodeResolver } from 'eslint-plugin-import-x';
+import fs from 'node:fs';
+import path from 'node:path';
 import tsParser from '@typescript-eslint/parser';
 import eslintConfigPrettier from 'eslint-config-prettier';
 import eslintPluginBetterTailwindcss from 'eslint-plugin-better-tailwindcss';
@@ -10,8 +14,34 @@ import globals from 'globals';
 import ts from 'typescript-eslint';
 import vueParser from 'vue-eslint-parser';
 
+// @sillytavern/* imports resolve to <ST>/public/* at runtime (the extension
+// host serves them). For out-of-tree linting, point SILLYTAVERN_DIR at a
+// SillyTavern clone: SILLYTAVERN_DIR=~/Projects/SillyTavern pnpm lint
+const ST_PUBLIC = process.env.SILLYTAVERN_DIR ? path.join(process.env.SILLYTAVERN_DIR, 'public') : null;
+
 /** @type {import('@typescript-eslint/utils').TSESLint.FlatConfig.ConfigFile} */
 export default [
+  {
+    // env-gated so plain `pnpm lint` keeps working without a ST checkout
+    settings: {
+      'import-x/resolver-next': [
+        {
+          interfaceVersion: 3,
+          name: 'sillytavern',
+          resolve(source) {
+            if (!ST_PUBLIC || !source.startsWith('@sillytavern/')) return { found: false };
+            const base = path.join(ST_PUBLIC, source.slice('@sillytavern/'.length));
+            for (const candidate of [base + '.js', base + '.ts', base + '/index.js', base + '/index.ts']) {
+              if (fs.existsSync(candidate)) return { found: true, path: candidate };
+            }
+            return { found: false };
+          },
+        },
+        createTypeScriptImportResolver(),
+        createNodeResolver(),
+      ],
+    },
+  },
   js.configs.recommended,
   ...ts.configs.recommended,
   importx.flatConfigs.recommended,
