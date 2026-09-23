@@ -105,7 +105,15 @@ function builtinDemacroOnRender($mes: JQuery<HTMLDivElement>, recs: ReturnType<t
   const byNode = new Map<number, typeof recs>();
   for (const rec of recs) {
     const idx = nodes.findIndex(n => rec.matchStart >= n.start && rec.matchEnd <= n.end);
-    if (idx === -1) continue; // match spans an element boundary — skip (same as legacy effectively)
+    if (idx === -1) {
+      // format records include their line prefix — any element boundary on
+      // the line makes the record span text nodes, which offsets can't
+      // express. NOT equivalent to legacy (which replaced the whole html
+      // string): defer to it — the render pipeline remounts iframes after
+      // demacro on the same event chain (see index.ts ordering note).
+      legacyDemacroOnRender($mes);
+      return;
+    }
     const arr = byNode.get(idx) ?? [];
     arr.push(rec);
     byNode.set(idx, arr);
@@ -117,9 +125,11 @@ function builtinDemacroOnRender($mes: JQuery<HTMLDivElement>, recs: ReturnType<t
     const pre = (node.parentElement as HTMLElement | null)?.closest('pre');
     if (pre) {
       touchedPres.add(pre as HTMLElement);
-      const code = (node.parentElement as HTMLElement | null)?.closest('code');
-      if (code) touchedCodes.add(code as HTMLElement);
     }
+    // legacy searches ALL descendant <code> — inline code outside <pre> also
+    // gets second-order replacement
+    const code = (node.parentElement as HTMLElement | null)?.closest('code');
+    if (code) touchedCodes.add(code as HTMLElement);
   };
 
   for (const [idx, nodeRecs] of byNode) {
@@ -131,7 +141,14 @@ function builtinDemacroOnRender($mes: JQuery<HTMLDivElement>, recs: ReturnType<t
     const hasNested = nodeRecs.some(
       r => r.kind === 'format' && /\{\{format_/i.test(fullText.slice(r.matchStart, r.macroStart)),
     );
-    if (hasNested) {
+    // overlapping records (e.g. a get inside a format's ::path}} — the get
+    // span ends at the format's own matchEnd) can't be applied by stale
+    // offsets/paths: the earlier replacement changes the text the later
+    // record points at. Whole-node replaceMacroLike applies macros in the
+    // original order against the current string.
+    const byStart = [...nodeRecs].sort((a, b) => a.matchStart - b.matchStart || a.matchEnd - b.matchEnd);
+    const overlaps = byStart.some((r, i) => i > 0 && r.matchStart < byStart[i - 1].matchEnd);
+    if (hasNested || overlaps) {
       node.data = replaceMacroLike(node.data, context);
       markTouched(node);
       continue;

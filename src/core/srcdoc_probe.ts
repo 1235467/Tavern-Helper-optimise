@@ -17,19 +17,23 @@ export function probeSrcdoc(): Promise<boolean> {
     const iframe = document.createElement('iframe');
     iframe.id = 'th-srcdoc-probe';
     iframe.style.display = 'none';
-    const finish = (v: boolean) => {
-      iframe.remove();
-      resolve((flaky = v));
-    };
+    let settled = false;
     const timeout = setTimeout(() => finish(false), 2000); // assume fine on timeout
     const poll = setInterval(() => {
       const ok = (window as unknown as { __TH_SRCDOC_OK?: boolean }).__TH_SRCDOC_OK;
       if (ok !== undefined) {
-        clearInterval(poll);
-        clearTimeout(timeout);
         finish(!ok);
       }
     }, 10);
+    // single cleanup path — a timeout must not leave the 10ms poll running
+    function finish(v: boolean) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      clearInterval(poll);
+      iframe.remove();
+      resolve((flaky = v));
+    }
     // the probe script reports whether frameElement survives inside srcdoc
     iframe.srcdoc = `<!DOCTYPE html><script>
       parent.__TH_SRCDOC_OK = !!(window.frameElement && window.frameElement.id === 'th-srcdoc-probe');

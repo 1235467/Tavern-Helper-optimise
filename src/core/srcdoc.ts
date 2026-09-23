@@ -64,7 +64,10 @@ function logScript(): string {
  * HTML deltas instead of reloading srcdoc.
  */
 export function createMessageSrcdoc(content: string, useBlobUrl: boolean, liveStreaming = false): string {
-  const rewritten = engine.rewriteSrcdoc(content);
+  // live mode: the document is only an applier shell — unsealed content must
+  // NOT be parsed into the body (complete <script>s would execute early, then
+  // again at seal, and the stale partial DOM would sit beside #th-stream-root)
+  const rewritten = liveStreaming ? '' : engine.rewriteSrcdoc(content);
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -85,7 +88,7 @@ ${logScript()}
 ${liveStreaming ? `<script src="${stream_applier_url}"></script>` : ''}
 </head>
 <body>
-${rewritten}
+${liveStreaming ? '<div id="th-stream-root"></div>' : rewritten}
 </body>
 </html>
 `;
