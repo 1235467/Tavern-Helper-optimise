@@ -9,6 +9,7 @@
 import { env } from '@/core/env';
 import { createMessageSrcdoc } from '@/core/srcdoc';
 import { srcdocIsFlaky } from '@/core/srcdoc_probe';
+import { engine } from '@/wasm/loader';
 import { eventSource } from '@sillytavern/script';
 
 /** one shared resize broadcaster instead of a listener per iframe */
@@ -101,14 +102,18 @@ export class MessageIframe {
 
   updateCode(codeText: string) {
     if (this.liveMode) {
+      // patches must carry the same rewrite a sealed srcdoc gets — otherwise
+      // vh units resolve against the raw iframe viewport while streaming and
+      // the layout visibly shifts when seal() loads the rewritten document
+      const html = engine.rewriteSrcdoc(codeText);
       if (this.loaded) {
-        this.iframe.contentWindow?.postMessage({ type: 'TH_STREAM_PATCH', html: codeText }, '*');
+        this.iframe.contentWindow?.postMessage({ type: 'TH_STREAM_PATCH', html }, '*');
         eventSource.emit('message_iframe_render_updated', this.name);
         return;
       }
       // shell not loaded yet — buffer only the newest content; the 'load'
       // handler delivers it as the first patch (no re-navigation per token)
-      this.pendingLiveCode = codeText;
+      this.pendingLiveCode = html;
       if (!this.shellWritten) {
         this.shellWritten = true;
         this.setDocument(createMessageSrcdoc('', this.effectiveBlobMode(), true));
