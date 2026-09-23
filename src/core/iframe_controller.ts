@@ -9,6 +9,7 @@
 import { env } from '@/core/env';
 import { createMessageSrcdoc } from '@/core/srcdoc';
 import { srcdocIsFlaky } from '@/core/srcdoc_probe';
+import { engine } from '@/wasm/loader';
 import { eventSource } from '@sillytavern/script';
 
 /** one shared resize broadcaster instead of a listener per iframe */
@@ -31,6 +32,9 @@ export class MessageIframe {
   private blobUrl: string | null = null;
   private loaded = false;
   private liveMode: boolean;
+  /** live mode: newest content buffered while the applier shell loads */
+  private pendingLiveCode: string | null = null;
+  private shellWritten = false;
 
   /**
    * @param name  full iframe id/name
@@ -48,6 +52,13 @@ export class MessageIframe {
     iframe.addEventListener('load', () => {
       this.loaded = true;
       eventSource.emit('message_iframe_render_ended', this.name);
+      // live mode: the shell's applier is registered by now — deliver the
+      // newest buffered content as the first patch
+      if (this.liveMode && this.pendingLiveCode !== null) {
+        const code = this.pendingLiveCode;
+        this.pendingLiveCode = null;
+        this.iframe.contentWindow?.postMessage({ type: 'TH_STREAM_PATCH', html: code }, '*');
+      }
     });
     this.iframe = iframe;
     hookResize();
@@ -90,14 +101,28 @@ export class MessageIframe {
   }
 
   updateCode(codeText: string) {
-    if (this.liveMode && this.loaded) {
-      this.iframe.contentWindow?.postMessage({ type: 'TH_STREAM_PATCH', html: codeText }, '*');
-      eventSource.emit('message_iframe_render_updated', this.name);
+    if (this.liveMode) {
+      // patches must carry the same rewrite a sealed srcdoc gets — otherwise
+      // vh units resolve against the raw iframe viewport while streaming and
+      // the layout visibly shifts when seal() loads the rewritten document
+      const html = engine.rewriteSrcdoc(codeText);
+      if (this.loaded) {
+        this.iframe.contentWindow?.postMessage({ type: 'TH_STREAM_PATCH', html }, '*');
+        eventSource.emit('message_iframe_render_updated', this.name);
+        return;
+      }
+      // shell not loaded yet — buffer only the newest content; the 'load'
+      // handler delivers it as the first patch (no re-navigation per token)
+      this.pendingLiveCode = html;
+      if (!this.shellWritten) {
+        this.shellWritten = true;
+        this.setDocument(createMessageSrcdoc('', this.effectiveBlobMode(), true));
+      }
       return;
     }
     // first load → started/ended pair; subsequent rewrites → render_updated
     const wasLoaded = this.loaded;
-    this.setDocument(createMessageSrcdoc(codeText, this.effectiveBlobMode(), this.liveMode));
+    this.setDocument(createMessageSrcdoc(codeText, this.effectiveBlobMode(), false));
     if (wasLoaded) {
       eventSource.emit('message_iframe_render_updated', this.name);
     }
@@ -106,6 +131,7 @@ export class MessageIframe {
   /** seal a live-mode iframe: write the final complete document once */
   seal(codeText: string) {
     this.liveMode = false;
+    this.pendingLiveCode = null;
     const wasLoaded = this.loaded;
     this.setDocument(createMessageSrcdoc(codeText, this.effectiveBlobMode(), false));
     if (wasLoaded) {

@@ -19,19 +19,28 @@ export function createDirtyFlush(flush: () => void | Promise<void>, ms = 300): D
   let timer: ReturnType<typeof setTimeout> | null = null;
   let paused = false;
   let pendingWhilePaused = false;
+  // `running` resolves only after every flush requested during it has
+  // drained — a mark whose timer fires mid-save carries state NEWER than
+  // the snapshot the in-flight flush serialized, so it must not be dropped.
   let running: Promise<void> | null = null;
+  let queued = false;
 
-  const run = async () => {
+  const run = (): Promise<void> => {
     if (running) {
-      await running;
-      return;
+      queued = true;
+      return running;
     }
-    running = Promise.resolve().then(flush);
-    try {
-      await running;
-    } finally {
-      running = null;
-    }
+    running = (async () => {
+      try {
+        do {
+          queued = false;
+          await flush();
+        } while (queued);
+      } finally {
+        running = null;
+      }
+    })();
+    return running;
   };
 
   const schedule = () => {

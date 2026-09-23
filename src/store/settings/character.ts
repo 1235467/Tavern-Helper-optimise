@@ -89,6 +89,12 @@ export const useCharacterSettingsStore = defineStore('character_setttings', () =
     if (new_id !== undefined) {
       await unshallowCharacter(String(new_id));
     }
+    // a faster switch may have overtaken this load while unshallow was in
+    // flight — assigning anyway would put the OLD character's settings into
+    // `settings`, and the next dirty flush would save them under the new id
+    if (id.value !== new_id) {
+      return;
+    }
     ignoreUpdates(() => {
       settings.value = getSettings(new_id);
     });

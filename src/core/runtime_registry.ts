@@ -131,6 +131,19 @@ export class RuntimeRegistry {
     }
   }
 
+  /** mount everything still deferred — used when io_gate turns off, so the
+   * toggle restores render-on-startup immediately instead of waiting for
+   * each pending wrapper to scroll into the observer margin */
+  private flushPending() {
+    for (const [id, rt] of this.runtimes) {
+      for (const rec of [...rt.pending]) {
+        this.observer.unobserve(rec.wrapper);
+        this.pendingByEl.delete(rec.wrapper);
+        this.mountPending(id, rec); // splices itself out of rt.pending
+      }
+    }
+  }
+
   /** auditRuntimes: keep runtimes still in range, mount missing, drop stale */
   audit() {
     const toRender = new Set(calcToRender(env().depth, env().depth_ignore_hidden));
@@ -143,6 +156,7 @@ export class RuntimeRegistry {
         if (rt) this.runtimes.set(id, rt);
       }
     }
+    if (!env().io_gate) this.flushPending();
   }
 
   /** drop+remount one message (MESSAGE_UPDATED / MESSAGE_SWIPED / RENDERED) */
