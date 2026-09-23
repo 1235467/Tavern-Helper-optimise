@@ -5,7 +5,7 @@ import { flattenScriptTree } from '@/type/scripts';
 import { CharacterSettings, setting_field } from '@/type/settings';
 import { fromCharacterBook, updateWorldInfoList } from '@/util/compatibility';
 import { writeExtensionField } from '@/util/tavern';
-import { characters, event_types, eventSource, this_chid } from '@sillytavern/script';
+import { characters, event_types, eventSource, this_chid, unshallowCharacter } from '@sillytavern/script';
 import { loadWorldInfo, saveWorldInfo } from '@sillytavern/scripts/world-info';
 
 function getSettings(id: string | undefined): CharacterSettings {
@@ -39,6 +39,12 @@ function getSettings(id: string | undefined): CharacterSettings {
   if (!parsed.success) {
     toastr.warning(parsed.error.message, t`[酒馆助手]读取角色卡数据失败, 将使用空数据`);
     return CharacterSettings.parse({});
+  }
+  // `scripts`/`variables` 上的 .catch 会把不兼容数据静默换成空值——读出来是空
+  // 不代表卡里真是空. 显式告警, 否则这个空壳会被后续任意写盘落进卡里.
+  if (Array.isArray(settings?.scripts) && settings.scripts.length > 0 && parsed.data.scripts.length === 0) {
+    console.error('[TavernHelper] scripts dropped by schema catch:', settings.scripts);
+    toastr.error(t`角色卡脚本数据无法解析(已保留卡内原数据, 详情见控制台)`, t`[酒馆助手]数据保护`);
   }
   return CharacterSettings.parse(parsed.data);
 }
@@ -76,8 +82,13 @@ export const useCharacterSettingsStore = defineStore('character_setttings', () =
     }
   });
 
-  // 切换角色卡时刷新 settings, 但不触发 settings 保存
-  watch([id, name], ([new_id]) => {
+  // 切换角色卡时刷新 settings, 但不触发 settings 保存.
+  // shallow 角色的 extensions 只有 {fav,world}, 直接读会得到空壳——
+  // 先 unshallow 再读, 否则空壳会被后续写盘落进卡里.
+  watch([id, name], async ([new_id]) => {
+    if (new_id !== undefined) {
+      await unshallowCharacter(String(new_id));
+    }
     ignoreUpdates(() => {
       settings.value = getSettings(new_id);
     });
@@ -178,7 +189,20 @@ export const useCharacterSettingsStore = defineStore('character_setttings', () =
     { deep: true },
   );
 
-  const forceReload = () => {
+  // 首次读取时角色可能是 shallow 存根 — unshallow 后用真实数据刷新一次,
+  // 否则 settings 里是空壳, 任何写盘都会扬掉卡内脚本.
+  if (id.value !== undefined) {
+    void unshallowCharacter(String(id.value)).then(() => {
+      ignoreUpdates(() => {
+        settings.value = getSettings(id.value);
+      });
+    });
+  }
+
+  const forceReload = async () => {
+    if (id.value !== undefined) {
+      await unshallowCharacter(String(id.value));
+    }
     ignoreUpdates(() => {
       if (id.value !== undefined && name.value !== undefined) {
         settings.value = getSettings(id.value);

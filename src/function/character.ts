@@ -122,6 +122,7 @@ type Payload = {
   ch_name: string;
   avatar_url: string;
   avatar?: File;
+  json_data?: string;
   character_version?: string;
   creator?: string;
   creator_notes?: string;
@@ -161,13 +162,18 @@ function fromCharacterToPayload(
     ch_name: character_name,
     avatar_url: character_name + '.png',
     avatar: isBlob(new_data.avatar) ? new File([new_data.avatar], character_name + '.png') : undefined,
+    // json_data 作为服务端重建的基底, 保住内嵌 character_book、v3 字段
+    // 和其他未列字段 — 否则它们会被重建丢掉.
+    json_data: old_data?.json_data,
     character_version: new_data.version ?? old_data?.data.character_version,
     creator: new_data.creator ?? old_data?.data.creator,
     creator_notes: new_data.creator_notes ?? old_data?.data.creator_notes,
     description: new_data.description ?? old_data?.data.description,
     first_mes: (new_data.first_messages?.[0] ?? old_data?.data.first_mes) || '',
     alternate_greetings: (new_data.first_messages?.slice(1) ?? old_data?.data.alternate_greetings) || [],
-    world,
+    // world 只在显式改链接时才发: 提交它会让服务端用世界书文件覆盖内嵌
+    // character_book. 不改时 extensions 合并自然保住原链接.
+    world: new_data.worldbook !== undefined ? world : undefined,
     extensions: JSON.stringify(extensions),
 
     chat: old_data?.chat,

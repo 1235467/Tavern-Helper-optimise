@@ -200,6 +200,19 @@ export function getFirstMessage() {
   return message;
 }
 
+const isEmptyHelperSettings = (v: any) =>
+  v !== null && typeof v === 'object' && !Array.isArray(v)
+  && Array.isArray(v.scripts) && v.scripts.length === 0
+  && typeof v.variables === 'object' && v.variables !== null && !Array.isArray(v.variables)
+  && Object.keys(v.variables).length === 0;
+
+// 旧版 tavern_helper 曾存成 [[k,v],...] 数组, 非空数组同样算有内容.
+const hasHelperContent = (v: any) =>
+  (Array.isArray(v) && v.length > 0)
+  || (v !== null && typeof v === 'object' && !Array.isArray(v)
+    && ((Array.isArray(v.scripts) && v.scripts.length > 0)
+      || (typeof v.variables === 'object' && v.variables !== null && !Array.isArray(v.variables) && Object.keys(v.variables).length > 0)));
+
 // 酒馆自带的 writeExtensionField 会合并旧值和新值, 因此自己做一个
 export async function writeExtensionField(
   id: string | undefined,
@@ -213,6 +226,24 @@ export async function writeExtensionField(
   }
   await unshallowCharacter(String(id));
   character = (characters as v1CharData[])[Number(id)];
+
+  // 硬拒绝: 空壳覆盖非空数据是数据灾难. 读侧任何一步出错(shallow 存根、
+  // schema catch、解析异常)都会产出空壳({scripts:[],variables:{}} 或 []),
+  // 绝不能让它落盘.
+  const existing = _.get(character.data.extensions, field);
+  const incoming_is_empty =
+    field === 'tavern_helper' ? isEmptyHelperSettings(value)
+    : field === 'regex_scripts' ? Array.isArray(value) && value.length === 0
+    : false;
+  const existing_has_content =
+    field === 'tavern_helper' ? hasHelperContent(existing)
+    : field === 'regex_scripts' ? Array.isArray(existing) && existing.length > 0
+    : false;
+  if (incoming_is_empty && existing_has_content) {
+    console.error(`[TavernHelper] Refused to overwrite '${field}' with an empty value:`, existing);
+    toastr.error(t`检测到空数据即将覆盖角色卡已有的 '${field}', 已阻止本次写入`, t`[酒馆助手]数据保护`);
+    return;
+  }
 
   if (_.isEqual(_.get(character.data.extensions, field), value)) {
     return;
@@ -245,13 +276,17 @@ export async function writeExtensionField(
   const payload = {
     ch_name: character.name,
     avatar_url: character.name + '.png',
+    // json_data 作为服务端重建的基底, 保住 character_book / system_prompt /
+    // v3 字段和一切外来键 — 只发列出的字段会把它们全部丢掉.
+    json_data: character.json_data,
     character_version: character.data.character_version,
     creator: character.data.creator,
     creator_notes: character.data.creator_notes,
     description: character.data.description,
     first_mes: character.data.first_mes,
     alternate_greetings: character.data.alternate_greetings,
-    world: character.data.extensions.world,
+    // 不单独发 world: extensions 合并会保住链接, 而提交 world 会让服务端
+    // 用链接世界书文件覆盖内嵌 character_book.
     extensions: JSON.stringify(character.data.extensions),
 
     chat: character.chat,
